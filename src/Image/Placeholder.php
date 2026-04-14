@@ -4,7 +4,8 @@ namespace Massif\ResponsiveImages\Image;
 
 use Closure;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
-use Statamic\Facades\Image as Glide;
+use Statamic\Imaging\GlideManager;
+use Statamic\Imaging\ImageGenerator;
 
 class Placeholder
 {
@@ -51,18 +52,20 @@ class Placeholder
 
     private function fetchViaGlide(ResolvedImage $image, array $cfg): array
     {
-        $manipulator = $image->isAsset()
-            ? Glide::manipulate($image->asset)
-            : Glide::manipulate($image->url);
+        $params = [
+            'w'    => (int) ($cfg['width'] ?? 32),
+            'blur' => (int) ($cfg['blur'] ?? 40),
+            'q'    => (int) ($cfg['quality'] ?? 40),
+            'fm'   => 'jpg',
+        ];
 
-        $url = $manipulator
-            ->w((int) ($cfg['width'] ?? 32))
-            ->blur((int) ($cfg['blur'] ?? 40))
-            ->q((int) ($cfg['quality'] ?? 40))
-            ->build();
+        $generator = app(ImageGenerator::class);
+        $path = $image->isAsset()
+            ? $generator->generateByAsset($image->asset, $params)
+            : $generator->generateByUrl($image->url, $params);
 
-        $bytes = @file_get_contents(public_path(ltrim($url, '/'))) ?: '';
+        $bytes = app(GlideManager::class)->cacheDisk()->get($path) ?: '';
 
-        return ['bytes' => $bytes, 'mime' => 'image/jpeg'];
+        return ['bytes' => (string) $bytes, 'mime' => 'image/jpeg'];
     }
 }

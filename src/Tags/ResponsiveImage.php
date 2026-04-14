@@ -176,22 +176,25 @@ class ResponsiveImage extends Tags
     private function buildArtDirectionSources(array $entries, string $defaultSizes, ?float $parentRatio, ?string $fit): array
     {
         $result = [];
-        foreach (['avif', 'webp', 'fallback'] as $format) {
-            if ($format !== 'fallback' && empty($this->config['formats'][$format]['enabled'])) {
+        foreach ($entries as $entry) {
+            $resolved = $this->resolver->resolve($entry['src'] ?? null);
+            if ($resolved === null) {
                 continue;
             }
-            foreach ($entries as $entry) {
-                $resolved = $this->resolver->resolve($entry['src'] ?? null);
-                if ($resolved === null) {
+
+            $meta = $this->metadata->for($resolved);
+            $entryRatio = $this->parseRatio($entry['ratio'] ?? null) ?? $parentRatio;
+            $widths = $this->srcsetBuilder->build((int) ($meta['width'] ?: 1920), $this->config);
+            $height = $entryRatio
+                ? (int) round((end($widths) ?: 0) / $entryRatio)
+                : null;
+            $sizes = (string) ($entry['sizes'] ?? $defaultSizes);
+            $media = $entry['media'] ?? null;
+
+            foreach (['avif', 'webp', 'fallback'] as $format) {
+                if ($format !== 'fallback' && empty($this->config['formats'][$format]['enabled'])) {
                     continue;
                 }
-
-                $meta = $this->metadata->for($resolved);
-                $entryRatio = $this->parseRatio($entry['ratio'] ?? null) ?? $parentRatio;
-                $widths = $this->srcsetBuilder->build((int) ($meta['width'] ?: 1920), $this->config);
-                $height = $entryRatio
-                    ? (int) round((end($widths) ?: 0) / $entryRatio)
-                    : null;
 
                 $mime = $format === 'fallback'
                     ? ((string) ($meta['mime'] ?? 'image/jpeg'))
@@ -200,8 +203,8 @@ class ResponsiveImage extends Tags
                 $result[] = [
                     'type'   => $mime,
                     'srcset' => $this->buildSrcset($resolved, $widths, $format, $height, $fit),
-                    'sizes'  => (string) ($entry['sizes'] ?? $defaultSizes),
-                    'media'  => $entry['media'] ?? null,
+                    'sizes'  => $sizes,
+                    'media'  => $media,
                 ];
             }
         }

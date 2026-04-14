@@ -73,7 +73,8 @@ class PictureRenderer
         }
 
         if (!empty($img['placeholder'])) {
-            $attrs['style'] = "background-size:cover;background-image:url('".$img['placeholder']."')";
+            $safeUri = preg_replace('/[^A-Za-z0-9+\/=:;,.\-]/', '', (string) $img['placeholder']);
+            $attrs['style'] = "background-size:cover;background-image:url('".$safeUri."')";
         }
 
         $rendered = '';

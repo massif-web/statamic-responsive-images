@@ -144,6 +144,7 @@ return [
   ```
 
 - **Non-image assets are skipped.** Unresolvable `src` values log a warning and render nothing.
+- **Plain URL `src` values bypass mtime-based cache invalidation.** Only Statamic assets (`assets::id` or asset instances) carry an mtime; URL strings cache under a zero mtime, so replacing a file at the same URL will not invalidate metadata or LQIPs. Clear the cache manually (or bump the config `cache.prefix`) after such replacements.
 - **Missing alt text is logged** but does not throw. Fix the warning or pass `alt=""` explicitly for decorative images.
 
 ## License
