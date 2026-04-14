@@ -72,20 +72,21 @@ With an asset field:
 
 ## Art direction
 
-Pass an array of entries. Each entry becomes its own set of `<source>` elements with the given `media` query. Entries earlier in the array win (browser picks the first match).
+Pass an array of entries via the `sources` parameter. Each entry becomes its own block of `<source>` elements with the given `media` query. Entries earlier in the array win (the browser picks the first matching `<source>`).
 
-```antlers
-{{ responsive_image
-    :src="hero_desktop"
-    alt="Hero"
-    :sources="[
-      { src: hero_mobile, media: '(max-width: 768px)' },
-      { src: hero_desktop }
-    ]"
-}}
-```
+**Antlers limitation — sources must be a variable, not an inline literal.** Antlers' expression parser chokes on inline array literals whose string values contain colons (e.g. `(max-width: 768px)`), so you cannot pass `:sources="[{...}]"` directly in a template. Build the array outside the template and pass it by name. The cleanest options:
 
-Each entry accepts `src`, `media`, `sizes`, and `ratio`. The last entry's `src` is used as the `<img>` fallback.
+1. **Blueprint field.** Add a `replicator` or `grid` field called `image_sources` with `src`, `media`, `sizes`, and `ratio` subfields, then:
+   ```antlers
+   {{ responsive_image :src="hero_desktop" :sources="image_sources" }}
+   ```
+
+2. **Template variable via a view composer, augmenter, or controller.** Share a `hero_sources` array from PHP and reference it the same way:
+   ```antlers
+   {{ responsive_image :src="hero_desktop" :sources="hero_sources" }}
+   ```
+
+Each entry accepts `src` (required), `media`, `sizes`, and `ratio`. The last entry's `src` is used as the `<img>` fallback when no breakpoint matches.
 
 ## Config
 

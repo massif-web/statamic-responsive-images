@@ -76,6 +76,19 @@ class ResponsiveImageTagTest extends TestCase
         $this->assertStringContainsString('fit=crop_focal', $html);
     }
 
+    public function test_no_ratio_omits_height_and_uses_contain(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src' => '/p.jpg',
+            'alt' => 'x',
+        ]);
+
+        // srcset/source URLs should carry w + fit=contain but no h query param
+        $this->assertStringNotContainsString('&amp;h=', $html);
+        $this->assertStringNotContainsString('?h=', $html);
+        $this->assertStringContainsString('fit=contain', $html);
+    }
+
     public function test_empty_src_returns_empty_string(): void
     {
         $html = $this->makeTag()->renderFromParams([

@@ -56,13 +56,19 @@ class Placeholder
             'w'    => (int) ($cfg['width'] ?? 32),
             'blur' => (int) ($cfg['blur'] ?? 40),
             'q'    => (int) ($cfg['quality'] ?? 40),
+            'fit'  => 'contain',
             'fm'   => 'jpg',
         ];
 
         $generator = app(ImageGenerator::class);
-        $path = $image->isAsset()
-            ? $generator->generateByAsset($image->asset, $params)
-            : $generator->generateByUrl($image->url, $params);
+
+        if ($image->isAsset()) {
+            $path = $generator->generateByAsset($image->asset, $params);
+        } elseif (preg_match('#^https?://#i', $image->url)) {
+            $path = $generator->generateByUrl($image->url, $params);
+        } else {
+            $path = $generator->generateByPath($image->url, $params);
+        }
 
         $bytes = app(GlideManager::class)->cacheDisk()->get($path) ?: '';
 

@@ -93,12 +93,17 @@ class ResponsiveImage extends Tags
 
         $ratio = $this->parseRatio($params['ratio'] ?? null);
         $fit = $params['fit']
-            ?? ($ratio ? ($this->config['glide']['default_fit'] ?? 'crop_focal') : null);
+            ?? ($ratio ? ($this->config['glide']['default_fit'] ?? 'crop_focal') : 'contain');
 
         $widthsOverride = $this->parseWidths($params['widths'] ?? null);
         $widths = $this->srcsetBuilder->build($sourceWidth, $this->config, $widthsOverride);
 
         [$imgWidth, $imgHeight] = $this->resolveDimensions($params, $meta, $ratio, $widths);
+
+        // Only pass height to srcset entries when a ratio is enforced. Without
+        // a ratio, Glide scales proportionally from width alone and we avoid
+        // any interaction with Statamic's auto_crop defaults.
+        $srcsetHeight = $ratio ? $imgHeight : null;
 
         $sizes = (string) ($params['sizes'] ?? $this->config['default_sizes']);
 
@@ -111,7 +116,7 @@ class ResponsiveImage extends Tags
                 ? ($this->resolver->resolve($lastEntrySrc) ?? $image)
                 : $image;
         } else {
-            $sources = $this->buildFormatSources($image, $widths, $sizes, $imgHeight, $fit);
+            $sources = $this->buildFormatSources($image, $widths, $sizes, $srcsetHeight, $fit);
             $fallbackImage = $image;
         }
 
@@ -125,7 +130,7 @@ class ResponsiveImage extends Tags
             fit: $fit,
         );
 
-        $fallbackSrcset = $this->buildSrcset($fallbackImage, $widths, 'fallback', $imgHeight, $fit);
+        $fallbackSrcset = $this->buildSrcset($fallbackImage, $widths, 'fallback', $srcsetHeight, $fit);
 
         $placeholder = $this->placeholderValue($params, $fallbackImage);
 
@@ -185,6 +190,7 @@ class ResponsiveImage extends Tags
             $meta = $this->metadata->for($resolved);
             $entryRatio = $this->parseRatio($entry['ratio'] ?? null) ?? $parentRatio;
             $widths = $this->srcsetBuilder->build((int) ($meta['width'] ?: 1920), $this->config);
+            $entryFit = $fit ?? ($entryRatio ? 'crop_focal' : 'contain');
             $height = $entryRatio
                 ? (int) round((end($widths) ?: 0) / $entryRatio)
                 : null;
@@ -202,7 +208,7 @@ class ResponsiveImage extends Tags
 
                 $result[] = [
                     'type'   => $mime,
-                    'srcset' => $this->buildSrcset($resolved, $widths, $format, $height, $fit),
+                    'srcset' => $this->buildSrcset($resolved, $widths, $format, $height, $entryFit),
                     'sizes'  => $sizes,
                     'media'  => $media,
                 ];

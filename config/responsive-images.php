@@ -28,6 +28,20 @@ return [
     ],
 
     'glide' => [
+        // Glide fit mode used when the tag is given a `ratio` (or explicit
+        // `width` + `height`) and no per-tag `fit` override. Valid Glide fits:
+        //   'crop_focal'   — crop to exact dimensions, honoring the asset's
+        //                    focal point when set (default)
+        //   'crop'         — crop to exact dimensions, centered
+        //   'crop-{x}-{y}' — crop at explicit focal coordinates, e.g. 'crop-50-50'
+        //   'contain'      — fit inside the box, preserving aspect, may letterbox
+        //   'max'          — like contain but never upscales
+        //   'fill'         — fill the box, may crop
+        //   'stretch'      — distort to exact dimensions
+        //
+        // When NO ratio is set, this option is ignored: the tag passes only
+        // `w` (plus `fit=contain`) so Glide scales proportionally from the
+        // source. That's how we keep intrinsic dimensions CLS-safe.
         'default_fit' => 'crop_focal',
     ],
 
