@@ -1,111 +1,39 @@
 <?php
 
 return [
+    // Srcset generation (next/image model).
+    // The srcset pool is device_sizes ∪ image_sizes, filtered to
+    // widths <= the source image's intrinsic width.
+    'device_sizes' => [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    'image_sizes'  => [16, 32, 48, 64, 96, 128, 256, 384],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default Widths
-    |--------------------------------------------------------------------------
-    |
-    | The default srcset widths generated when no widths param is provided.
-    |
-    */
-    'widths' => [320, 640, 960, 1280, 1920],
+    // Default sizes attribute when the tag caller does not provide one.
+    'default_sizes' => '100vw',
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default Sizes
-    |--------------------------------------------------------------------------
-    |
-    | The default sizes attribute value for <img> and <source> elements.
-    |
-    */
-    'sizes' => '100vw',
+    // Fallback <img src> width target. Fixed, for browsers that do not
+    // match any <source>. Glide will pick the closest available.
+    'fallback_width' => 828,
 
-    /*
-    |--------------------------------------------------------------------------
-    | Format Support
-    |--------------------------------------------------------------------------
-    |
-    | Control which modern formats are generated. Disable AVIF if your Glide
-    | driver (e.g. GD) does not support it.
-    |
-    */
-    'avif' => true,
-    'webp' => true,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Format Quality
-    |--------------------------------------------------------------------------
-    |
-    | Quality settings per format (1–100).
-    |
-    */
-    'quality' => [
-        'avif' => 60,
-        'webp' => 75,
-        'jpg'  => 85,
-        'png'  => 90,
+    'formats' => [
+        'avif'     => ['enabled' => true, 'quality' => 50],
+        'webp'     => ['enabled' => true, 'quality' => 75],
+        'fallback' => ['quality' => 82],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Minimum Width Threshold for Modern Formats
-    |--------------------------------------------------------------------------
-    |
-    | Skip AVIF/WebP generation for widths below this threshold (px).
-    |
-    */
-    'modern_format_min_width' => 300,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Placeholder / LQIP
-    |--------------------------------------------------------------------------
-    |
-    | Low-quality image placeholder settings. When enabled, a tiny inline
-    | image is embedded as a background for perceived performance.
-    |
-    */
     'placeholder' => [
-        'enabled' => false,
+        'enabled' => true,
         'width'   => 32,
-        'quality' => 30,
+        'blur'    => 40,
+        'quality' => 40,
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default Loading Strategy
-    |--------------------------------------------------------------------------
-    |
-    | Sets the default `loading` attribute on <img>. Use "lazy" for most
-    | images and "eager" for above-the-fold hero images.
-    |
-    */
-    'loading' => 'lazy',
+    'glide' => [
+        'default_fit' => 'crop_focal',
+    ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default Decoding
-    |--------------------------------------------------------------------------
-    */
-    'decoding' => 'async',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Presets
-    |--------------------------------------------------------------------------
-    |
-    | Named presets that bundle widths, sizes, and other options.
-    |
-    | Example:
-    |   'hero' => [
-    |       'widths' => [768, 1280, 1920],
-    |       'sizes'  => '100vw',
-    |   ],
-    |
-    */
-    'presets' => [],
-
+    'cache' => [
+        'store'  => null,
+        'ttl'    => null,
+        'prefix' => 'respimg',
+    ],
 ];
