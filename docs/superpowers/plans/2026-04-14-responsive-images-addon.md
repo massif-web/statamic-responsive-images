@@ -15,7 +15,7 @@
 ## File Structure
 
 ```
-addons/Massif/ResponsiveImages/
+
 ├── composer.json
 ├── README.md
 ├── phpunit.xml
@@ -64,10 +64,10 @@ Responsibilities per file:
 ## Task 1: Addon Scaffold
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/composer.json`
-- Create: `addons/Massif/ResponsiveImages/src/ServiceProvider.php`
-- Create: `addons/Massif/ResponsiveImages/phpunit.xml`
-- Create: `addons/Massif/ResponsiveImages/tests/TestCase.php`
+- Create: `composer.json`
+- Create: `src/ServiceProvider.php`
+- Create: `phpunit.xml`
+- Create: `tests/TestCase.php`
 
 - [ ] **Step 1: Create composer.json**
 
@@ -204,7 +204,6 @@ abstract class TestCase extends OrchestraTestCase
 - [ ] **Step 5: Install and run**
 
 ```bash
-cd addons/Massif/ResponsiveImages
 composer install
 vendor/bin/phpunit
 ```
@@ -214,7 +213,7 @@ Expected: "No tests executed" (we have none yet). Composer autoload should succe
 - [ ] **Step 6: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages
+git add composer.json phpunit.xml src/ServiceProvider.php tests/TestCase.php
 git commit -m "feat(responsive-images): scaffold addon"
 ```
 
@@ -223,7 +222,7 @@ git commit -m "feat(responsive-images): scaffold addon"
 ## Task 2: Config File
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/config/responsive-images.php`
+- Create: `config/responsive-images.php`
 
 - [ ] **Step 1: Write config file**
 
@@ -272,7 +271,7 @@ return [
 - [ ] **Step 2: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/config/responsive-images.php
+git add config/responsive-images.php
 git commit -m "feat(responsive-images): add default config"
 ```
 
@@ -281,8 +280,8 @@ git commit -m "feat(responsive-images): add default config"
 ## Task 3: SrcsetBuilder (pure, TDD)
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/tests/Unit/SrcsetBuilderTest.php`
-- Create: `addons/Massif/ResponsiveImages/src/Image/SrcsetBuilder.php`
+- Create: `tests/Unit/SrcsetBuilderTest.php`
+- Create: `src/Image/SrcsetBuilder.php`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -422,8 +421,8 @@ Expected: 5 tests, 5 assertions, OK.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/Image/SrcsetBuilder.php \
-        addons/Massif/ResponsiveImages/tests/Unit/SrcsetBuilderTest.php
+git add src/Image/SrcsetBuilder.php \
+        tests/Unit/SrcsetBuilderTest.php
 git commit -m "feat(responsive-images): add SrcsetBuilder"
 ```
 
@@ -432,7 +431,7 @@ git commit -m "feat(responsive-images): add SrcsetBuilder"
 ## Task 4: ResolvedImage DTO
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/src/Image/ResolvedImage.php`
+- Create: `src/Image/ResolvedImage.php`
 
 Tiny value object used by several later classes. No tests — it's a pure data holder.
 
@@ -465,7 +464,7 @@ final class ResolvedImage
 - [ ] **Step 2: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/Image/ResolvedImage.php
+git add src/Image/ResolvedImage.php
 git commit -m "feat(responsive-images): add ResolvedImage DTO"
 ```
 
@@ -474,8 +473,8 @@ git commit -m "feat(responsive-images): add ResolvedImage DTO"
 ## Task 5: UrlBuilder (TDD)
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/tests/Unit/UrlBuilderTest.php`
-- Create: `addons/Massif/ResponsiveImages/src/Image/UrlBuilder.php`
+- Create: `tests/Unit/UrlBuilderTest.php`
+- Create: `src/Image/UrlBuilder.php`
 
 `UrlBuilder` wraps Statamic's Glide URL helper. The helper returns something like `/img/asset/{id}?w=...&fm=webp&q=75`. In tests we replace the underlying `Statamic\Facades\Image` call with an injected closure so unit tests don't need a running Statamic container.
 
@@ -611,8 +610,8 @@ Expected: 3 tests, 3 assertions, OK.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/Image/UrlBuilder.php \
-        addons/Massif/ResponsiveImages/tests/Unit/UrlBuilderTest.php
+git add src/Image/UrlBuilder.php \
+        tests/Unit/UrlBuilderTest.php
 git commit -m "feat(responsive-images): add UrlBuilder"
 ```
 
@@ -621,9 +620,9 @@ git commit -m "feat(responsive-images): add UrlBuilder"
 ## Task 6: MetadataReader + Metadata (cached, TDD)
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/src/Image/MetadataReader.php`
-- Create: `addons/Massif/ResponsiveImages/src/Image/Metadata.php`
-- Create: `addons/Massif/ResponsiveImages/tests/Unit/MetadataTest.php`
+- Create: `src/Image/MetadataReader.php`
+- Create: `src/Image/Metadata.php`
+- Create: `tests/Unit/MetadataTest.php`
 
 `Metadata` is the cached wrapper. `MetadataReader` is the thing that actually reads pixels and is injected, so tests can use a fake.
 
@@ -781,9 +780,9 @@ Expected: 2 tests, OK.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/Image/Metadata.php \
-        addons/Massif/ResponsiveImages/src/Image/MetadataReader.php \
-        addons/Massif/ResponsiveImages/tests/Unit/MetadataTest.php
+git add src/Image/Metadata.php \
+        src/Image/MetadataReader.php \
+        tests/Unit/MetadataTest.php
 git commit -m "feat(responsive-images): add cached Metadata"
 ```
 
@@ -792,8 +791,8 @@ git commit -m "feat(responsive-images): add cached Metadata"
 ## Task 7: Placeholder (TDD)
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/tests/Unit/PlaceholderTest.php`
-- Create: `addons/Massif/ResponsiveImages/src/Image/Placeholder.php`
+- Create: `tests/Unit/PlaceholderTest.php`
+- Create: `src/Image/Placeholder.php`
 
 `Placeholder` takes a `ResolvedImage` + config and returns a base64 data URI. It needs to fetch the tiny blurred image once per asset. In tests we inject a fetcher closure so we don't need a running Glide.
 
@@ -950,8 +949,8 @@ Expected: 2 tests, OK.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/Image/Placeholder.php \
-        addons/Massif/ResponsiveImages/tests/Unit/PlaceholderTest.php
+git add src/Image/Placeholder.php \
+        tests/Unit/PlaceholderTest.php
 git commit -m "feat(responsive-images): add Placeholder"
 ```
 
@@ -960,8 +959,8 @@ git commit -m "feat(responsive-images): add Placeholder"
 ## Task 8: ImageResolver (TDD)
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/tests/Unit/ImageResolverTest.php`
-- Create: `addons/Massif/ResponsiveImages/src/Image/ImageResolver.php`
+- Create: `tests/Unit/ImageResolverTest.php`
+- Create: `src/Image/ImageResolver.php`
 
 `ImageResolver` turns whatever the user passed as `:src` into a `ResolvedImage`. Supports: a Statamic `Asset` object, an asset reference string (`assets::id`), or a plain URL/path. Returns `null` on failure (caller logs).
 
@@ -1121,8 +1120,8 @@ Expected: 3 tests, OK.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/Image/ImageResolver.php \
-        addons/Massif/ResponsiveImages/tests/Unit/ImageResolverTest.php
+git add src/Image/ImageResolver.php \
+        tests/Unit/ImageResolverTest.php
 git commit -m "feat(responsive-images): add ImageResolver"
 ```
 
@@ -1131,8 +1130,8 @@ git commit -m "feat(responsive-images): add ImageResolver"
 ## Task 9: PictureRenderer (TDD)
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/tests/Unit/PictureRendererTest.php`
-- Create: `addons/Massif/ResponsiveImages/src/View/PictureRenderer.php`
+- Create: `tests/Unit/PictureRendererTest.php`
+- Create: `src/View/PictureRenderer.php`
 
 `PictureRenderer` is a dumb string builder. It takes a fully-resolved data structure and emits HTML. Everything is already computed by callers.
 
@@ -1405,8 +1404,8 @@ Expected: 6 tests, OK.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/View/PictureRenderer.php \
-        addons/Massif/ResponsiveImages/tests/Unit/PictureRendererTest.php
+git add src/View/PictureRenderer.php \
+        tests/Unit/PictureRendererTest.php
 git commit -m "feat(responsive-images): add PictureRenderer"
 ```
 
@@ -1415,9 +1414,9 @@ git commit -m "feat(responsive-images): add PictureRenderer"
 ## Task 10: ResponsiveImage Tag (integration, TDD)
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/tests/Feature/ResponsiveImageTagTest.php`
-- Create: `addons/Massif/ResponsiveImages/src/Tags/ResponsiveImage.php`
-- Modify: `addons/Massif/ResponsiveImages/src/ServiceProvider.php` (uncomment tag registration if you stubbed it out in Task 1)
+- Create: `tests/Feature/ResponsiveImageTagTest.php`
+- Create: `src/Tags/ResponsiveImage.php`
+- Modify: `src/ServiceProvider.php` (uncomment tag registration if you stubbed it out in Task 1)
 
 This task wires everything together. The tag class reads params, normalizes them, walks the pipeline from Task 3–9, and returns HTML via the renderer.
 
@@ -1810,9 +1809,9 @@ Expected: all unit + feature tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/Tags/ResponsiveImage.php \
-        addons/Massif/ResponsiveImages/src/ServiceProvider.php \
-        addons/Massif/ResponsiveImages/tests/Feature/ResponsiveImageTagTest.php
+git add src/Tags/ResponsiveImage.php \
+        src/ServiceProvider.php \
+        tests/Feature/ResponsiveImageTagTest.php
 git commit -m "feat(responsive-images): wire ResponsiveImage tag"
 ```
 
@@ -1821,7 +1820,7 @@ git commit -m "feat(responsive-images): wire ResponsiveImage tag"
 ## Task 11: Container Bindings
 
 **Files:**
-- Modify: `addons/Massif/ResponsiveImages/src/ServiceProvider.php`
+- Modify: `src/ServiceProvider.php`
 
 Currently the tag falls back to `app(...)` for each collaborator but Laravel can't construct `Metadata` or `Placeholder` automatically (they need a cache repository and injected closures). Register them in the container.
 
@@ -1881,7 +1880,7 @@ Expected: all green.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/src/ServiceProvider.php
+git add src/ServiceProvider.php
 git commit -m "feat(responsive-images): register container bindings"
 ```
 
@@ -1890,7 +1889,7 @@ git commit -m "feat(responsive-images): register container bindings"
 ## Task 12: README
 
 **Files:**
-- Create: `addons/Massif/ResponsiveImages/README.md`
+- Create: `README.md`
 
 - [ ] **Step 1: Write README**
 
@@ -1976,7 +1975,7 @@ See `config/responsive-images.php`. Notable keys:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add addons/Massif/ResponsiveImages/README.md
+git add README.md
 git commit -m "docs(responsive-images): add README"
 ```
 
