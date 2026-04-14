@@ -133,28 +133,41 @@ class ResponsiveImage extends Tags
         $fallbackSrcset = $this->buildSrcset($fallbackImage, $widths, 'fallback', $srcsetHeight, $fit);
 
         $placeholder = $this->placeholderValue($params, $fallbackImage);
+        $objectPosition = $this->objectPositionFromFocal($fallbackImage);
+
+        $figure = $this->bool($params['figure'] ?? false);
+        $ratioWrapper = $this->bool($params['ratio_wrapper'] ?? false);
+        $hasWrapper = $figure || $ratioWrapper;
+
+        $imgClass = $params['img_class'] ?? null;
+        if (! $hasWrapper && ! empty($params['class'])) {
+            $imgClass = trim(($imgClass ? $imgClass.' ' : '').$params['class']);
+        }
+
+        $caption = $this->resolveCaption($params, $alt, $figure);
 
         $data = [
             'sources' => $sources,
             'img' => [
-                'src'           => $imgSrc,
-                'srcset'        => $fallbackSrcset,
-                'sizes'         => $sizes,
-                'width'         => $imgWidth,
-                'height'        => $imgHeight,
-                'alt'           => $alt,
-                'class'         => $params['img_class'] ?? null,
-                'loading'       => $params['loading'] ?? 'lazy',
-                'decoding'      => $params['decoding'] ?? 'async',
-                'fetchpriority' => $params['fetchpriority'] ?? 'auto',
-                'placeholder'   => $placeholder,
+                'src'             => $imgSrc,
+                'srcset'          => $fallbackSrcset,
+                'sizes'           => $sizes,
+                'width'           => $imgWidth,
+                'height'          => $imgHeight,
+                'alt'             => $alt,
+                'class'           => $imgClass,
+                'loading'         => $params['loading'] ?? 'lazy',
+                'decoding'        => $params['decoding'] ?? 'async',
+                'fetchpriority'   => $params['fetchpriority'] ?? 'auto',
+                'placeholder'     => $placeholder,
+                'object_position' => $objectPosition,
             ],
             'wrapper' => [
-                'figure'        => $this->bool($params['figure'] ?? false),
-                'ratio_wrapper' => $this->bool($params['ratio_wrapper'] ?? false),
+                'figure'        => $figure,
+                'ratio_wrapper' => $ratioWrapper,
                 'ratio'         => $ratio ? $this->formatRatioString($params['ratio']) : null,
-                'caption'       => $params['caption'] ?? null,
-                'class'         => $params['class'] ?? null,
+                'caption'       => $caption,
+                'class'         => $hasWrapper ? ($params['class'] ?? null) : null,
             ],
         ];
 
@@ -293,6 +306,55 @@ class ResponsiveImage extends Tags
         }
 
         return [(int) $meta['width'], (int) $meta['height']];
+    }
+
+    private function resolveCaption(array $params, string $alt, bool $figure): ?string
+    {
+        if (! $figure) {
+            return null;
+        }
+
+        if (array_key_exists('caption', $params)) {
+            $raw = $params['caption'];
+
+            if ($raw === false || $raw === 'false' || $raw === '0' || $raw === 0) {
+                return null;
+            }
+
+            if ($raw !== null && $raw !== '' && $raw !== true && $raw !== 'true') {
+                return (string) $raw;
+            }
+        }
+
+        return $alt !== '' ? $alt : null;
+    }
+
+    private function objectPositionFromFocal(ResolvedImage $image): ?string
+    {
+        if (! $image->isAsset() || $image->asset === null) {
+            return null;
+        }
+
+        $asset = $image->asset;
+        $focus = method_exists($asset, 'get') ? $asset->get('focus') : null;
+
+        if (! is_string($focus) || $focus === '') {
+            return null;
+        }
+
+        $parts = explode('-', $focus);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $x = $parts[0];
+        $y = $parts[1];
+
+        if (! is_numeric($x) || ! is_numeric($y)) {
+            return null;
+        }
+
+        return ((float) $x).'% '.((float) $y).'%';
     }
 
     private function resolveAlt(array $params, ResolvedImage $image): string

@@ -58,17 +58,49 @@ With an asset field:
 | `ratio` | string | Force an aspect ratio. Accepts `16/9` or `16:9`. Drives crop height on every srcset entry. |
 | `width` | int | Explicit intrinsic width. |
 | `height` | int | Explicit intrinsic height. |
-| `fit` | string | Glide fit mode. Defaults to `glide.default_fit` (`crop_focal`) when a ratio is set. |
-| `class` | string | Class on the wrapper element when `figure` or `ratio_wrapper` is used. |
-| `img_class` | string | Class applied directly to the `<img>`. |
+| `fit` | string | Glide fit mode. Defaults to `glide.default_fit` (`crop_focal`) when a ratio is set. Without a ratio, URLs use `fit=contain` so Glide scales proportionally. |
+| `class` | string | Class for the outermost rendered element. Lands on the wrapper when `figure` or `ratio_wrapper` is used, otherwise on the `<img>`. |
+| `img_class` | string | Class applied directly to the `<img>`. Merges with `class` when there's no wrapper. |
 | `loading` | string | `lazy` (default), `eager`. |
 | `decoding` | string | `async` (default), `sync`, `auto`. |
 | `fetchpriority` | string | `auto` (default), `high`, `low`. |
 | `placeholder` | bool | Set `false` to disable the inline LQIP for this tag. |
 | `figure` | bool | Wrap output in `<figure>`. |
-| `caption` | string | Caption text. Implies `figure=true`. |
+| `caption` | string\|bool | Caption text (only rendered in figure mode). When omitted, the figure auto-captions from the resolved `alt` text. Pass `caption="false"` to disable the auto-caption. |
 | `ratio_wrapper` | bool | Wrap output in a `<div style="aspect-ratio:…">`. |
 | `sources` | array | Art-direction sources. See below. |
+
+### Classes
+
+`class` targets the outermost rendered element. When you wrap the output in a `<figure>` or a ratio `<div>`, the class lands on that wrapper; otherwise it lands on the `<img>`. If you also pass `img_class` in the wrapperless case, both are merged on the `<img>`.
+
+```antlers
+{{# No wrapper → class goes on the <img>. #}}
+{{ responsive_image :src="hero" class="rounded shadow" }}
+
+{{# Wrapper present → class goes on the <figure>, img_class on the <img>. #}}
+{{ responsive_image :src="hero" figure="true" class="card" img_class="object-cover" }}
+```
+
+### Captions
+
+In figure mode, the tag auto-captions from the resolved `alt` text (which itself falls back to the asset's `alt` field). Explicit `caption` wins. Pass `caption="false"` to render a `<figure>` without a `<figcaption>`.
+
+```antlers
+{{# Auto-caption from alt (figure=true) #}}
+{{ responsive_image :src="hero" alt="Sunset over the coast" figure="true" }}
+{{# → <figure>…<figcaption>Sunset over the coast</figcaption></figure> #}}
+
+{{# Explicit caption #}}
+{{ responsive_image :src="hero" figure="true" caption="Shot in Lisbon" }}
+
+{{# Figure without caption #}}
+{{ responsive_image :src="hero" figure="true" caption="false" }}
+```
+
+### Focal point → `object-position`
+
+When the source is a Statamic asset with a focal point set in the CP, the tag emits an inline `object-position: x% y%` on the `<img>` so CSS-cropped layouts (e.g. `object-fit: cover` on a fixed-aspect container) keep the subject in frame. This is on by default, is a no-op when no focal point is set, and costs nothing when the CSS doesn't use `object-fit`.
 
 ## Art direction
 

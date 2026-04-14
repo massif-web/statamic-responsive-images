@@ -72,9 +72,23 @@ class PictureRenderer
             $attrs['class'] = $img['class'];
         }
 
+        $styles = [];
+
         if (!empty($img['placeholder'])) {
             $safeUri = preg_replace('/[^A-Za-z0-9+\/=:;,.\-]/', '', (string) $img['placeholder']);
-            $attrs['style'] = "background-size:cover;background-image:url('".$safeUri."')";
+            $styles[] = 'background-size:cover';
+            $styles[] = "background-image:url('".$safeUri."')";
+        }
+
+        if (!empty($img['object_position'])) {
+            $safePos = preg_replace('/[^0-9%. \-]/', '', (string) $img['object_position']);
+            if ($safePos !== '') {
+                $styles[] = 'object-position:'.$safePos;
+            }
+        }
+
+        if ($styles !== []) {
+            $attrs['style'] = implode(';', $styles);
         }
 
         $rendered = '';

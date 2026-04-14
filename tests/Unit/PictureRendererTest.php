@@ -26,6 +26,7 @@ class PictureRendererTest extends TestCase
                 'decoding' => 'async',
                 'fetchpriority' => 'auto',
                 'placeholder' => null,
+                'object_position' => null,
             ],
             'wrapper' => [
                 'figure' => false,
@@ -98,6 +99,30 @@ class PictureRendererTest extends TestCase
 
         $this->assertStringContainsString('<figure>', $html);
         $this->assertStringContainsString('<figcaption>A photo</figcaption>', $html);
+    }
+
+    public function test_object_position_inlined_on_img(): void
+    {
+        $data = $this->baseData();
+        $data['img']['object_position'] = '25% 75%';
+
+        $html = (new PictureRenderer())->render($data);
+
+        $this->assertStringContainsString('object-position:25% 75%', $html);
+    }
+
+    public function test_object_position_combined_with_placeholder(): void
+    {
+        $data = $this->baseData();
+        $data['img']['placeholder'] = 'data:image/jpeg;base64,AAA';
+        $data['img']['object_position'] = '50% 10%';
+
+        $html = (new PictureRenderer())->render($data);
+
+        $this->assertStringContainsString(
+            "background-size:cover;background-image:url('data:image/jpeg;base64,AAA');object-position:50% 10%",
+            $html
+        );
     }
 
     public function test_art_direction_media_query(): void

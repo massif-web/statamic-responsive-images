@@ -112,6 +112,81 @@ class ResponsiveImageTagTest extends TestCase
         $this->assertStringContainsString('image/webp', $html);
     }
 
+    public function test_class_without_wrapper_lands_on_img(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src'   => '/p.jpg',
+            'alt'   => 'x',
+            'class' => 'rounded shadow',
+        ]);
+
+        $this->assertStringContainsString('class="rounded shadow"', $html);
+        $this->assertStringNotContainsString('<figure', $html);
+        $this->assertStringNotContainsString('<div', $html);
+    }
+
+    public function test_class_and_img_class_merge_without_wrapper(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src'       => '/p.jpg',
+            'alt'       => 'x',
+            'class'     => 'rounded',
+            'img_class' => 'object-cover',
+        ]);
+
+        $this->assertStringContainsString('class="object-cover rounded"', $html);
+    }
+
+    public function test_class_with_figure_goes_on_wrapper(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src'    => '/p.jpg',
+            'alt'    => 'x',
+            'class'  => 'card',
+            'figure' => true,
+        ]);
+
+        $this->assertStringContainsString('<figure class="card">', $html);
+        $this->assertStringNotContainsString('class="card"', substr($html, strpos($html, '<img')));
+    }
+
+    public function test_figure_auto_captions_from_alt(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src'    => '/p.jpg',
+            'alt'    => 'A sunset',
+            'figure' => true,
+        ]);
+
+        $this->assertStringContainsString('<figcaption>A sunset</figcaption>', $html);
+    }
+
+    public function test_figure_caption_explicit_overrides_alt(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src'     => '/p.jpg',
+            'alt'     => 'A sunset',
+            'figure'  => true,
+            'caption' => 'Shot in Lisbon',
+        ]);
+
+        $this->assertStringContainsString('<figcaption>Shot in Lisbon</figcaption>', $html);
+        $this->assertStringNotContainsString('A sunset</figcaption>', $html);
+    }
+
+    public function test_figure_caption_can_be_disabled(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src'     => '/p.jpg',
+            'alt'     => 'A sunset',
+            'figure'  => true,
+            'caption' => 'false',
+        ]);
+
+        $this->assertStringContainsString('<figure>', $html);
+        $this->assertStringNotContainsString('<figcaption', $html);
+    }
+
     public function test_art_direction_sources(): void
     {
         $html = $this->makeTag()->renderFromParams([
