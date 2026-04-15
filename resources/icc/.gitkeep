@@ -1,0 +1,11 @@
+Drop sRGB_IEC61966-2-1_black_scaled.icc in this directory.
+
+Source: https://www.color.org/srgbprofiles.xalter
+
+The ColorProfile manipulator (src/Glide/ColorProfile.php) reads the file at
+resources/icc/sRGB_IEC61966-2-1_black_scaled.icc and applies it to every
+transformed image on the Imagick driver, converting the image's source
+colorspace (Adobe RGB, Display P3, CMYK, etc.) to sRGB via lcms.
+
+If the file is absent, the manipulator silently no-ops and delivery continues
+unchanged — the addon does not break.

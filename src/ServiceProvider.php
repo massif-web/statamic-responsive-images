@@ -2,7 +2,8 @@
 
 namespace Massif\ResponsiveImages;
 
-use Statamic\Providers\AddonServiceProvider;
+use League\Glide\Server;
+use Massif\ResponsiveImages\Glide\ColorProfile;
 use Massif\ResponsiveImages\Image\ImageResolver;
 use Massif\ResponsiveImages\Image\Metadata;
 use Massif\ResponsiveImages\Image\MetadataReader;
@@ -11,6 +12,7 @@ use Massif\ResponsiveImages\Image\SrcsetBuilder;
 use Massif\ResponsiveImages\Image\UrlBuilder;
 use Massif\ResponsiveImages\Tags\ResponsiveImage;
 use Massif\ResponsiveImages\View\PictureRenderer;
+use Statamic\Providers\AddonServiceProvider;
 
 class ServiceProvider extends AddonServiceProvider
 {
@@ -46,6 +48,19 @@ class ServiceProvider extends AddonServiceProvider
             return new Placeholder(
                 $app['cache']->store($config['cache']['store'] ?? null),
             );
+        });
+    }
+
+    public function bootAddon(): void
+    {
+        $profilePath = __DIR__.'/../resources/icc/sRGB_IEC61966-2-1_black_scaled.icc';
+
+        $this->app->resolving(Server::class, function (Server $server) use ($profilePath) {
+            $api = $server->getApi();
+            $manipulators = $api->getManipulators();
+            $manipulators[] = new ColorProfile($profilePath);
+            $api->setManipulators($manipulators);
+            $server->setApi($api);
         });
     }
 }

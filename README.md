@@ -179,6 +179,7 @@ return [
 - **Non-image assets are skipped.** Unresolvable `src` values log a warning and render nothing.
 - **Plain URL `src` values bypass mtime-based cache invalidation.** Only Statamic assets (`assets::id` or asset instances) carry an mtime; URL strings cache under a zero mtime, so replacing a file at the same URL will not invalidate metadata or LQIPs. Clear the cache manually (or bump the config `cache.prefix`) after such replacements.
 - **Missing alt text is logged** but does not throw. Fix the warning or pass `alt=""` explicitly for decorative images.
+- **Color profiles are normalized to sRGB** on the Imagick driver with the `lcms` delegate. Source images in Adobe RGB, Display P3, or CMYK are color-managed (not blindly tagged) so the browser gets true sRGB output. The manipulator silently no-ops on GD, non-Imagick drivers, and Imagick builds without `lcms` — delivery continues unchanged in those cases. Confirm `lcms` availability with `convert -list configure | grep DELEGATES`. **After upgrading, clear `storage/statamic/glide`** so existing cached transforms get regenerated with the profile applied.
 
 ## License
 
