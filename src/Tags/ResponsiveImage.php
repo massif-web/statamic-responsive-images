@@ -4,6 +4,7 @@ namespace Massif\ResponsiveImages\Tags;
 
 use Illuminate\Support\Facades\Log;
 use Statamic\Tags\Tags;
+use Massif\ResponsiveImages\Image\ImageMetadata;
 use Massif\ResponsiveImages\Image\ImageResolver;
 use Massif\ResponsiveImages\Image\Metadata;
 use Massif\ResponsiveImages\Image\SrcsetBuilder;
@@ -87,7 +88,12 @@ class ResponsiveImage extends Tags
     private function renderForImage(ResolvedImage $image, array $params): string
     {
         $meta = $this->metadata->for($image);
-        $sourceWidth = (int) ($meta['width'] ?: 1920);
+
+        if ($meta->failed) {
+            return $this->renderBareImg($image, $params);
+        }
+
+        $sourceWidth = (int) ($meta->width ?: 1920);
 
         $alt = $this->resolveAlt($params, $image);
 
@@ -174,6 +180,35 @@ class ResponsiveImage extends Tags
         return $this->renderer->render($data);
     }
 
+    private function renderBareImg(ResolvedImage $image, array $params): string
+    {
+        $src = $image->isAsset() && $image->asset !== null
+            ? (string) $image->asset->url()
+            : (string) $image->url;
+
+        $alt = $this->resolveAlt($params, $image);
+
+        $attrs = [
+            'src'      => $src,
+            'alt'      => $alt,
+            'loading'  => $params['loading'] ?? 'lazy',
+            'decoding' => $params['decoding'] ?? 'async',
+        ];
+
+        if (! empty($params['class'])) {
+            $attrs['class'] = (string) $params['class'];
+        }
+
+        $html = '<img';
+        foreach ($attrs as $k => $v) {
+            if ($v === '' && $k !== 'alt') {
+                continue;
+            }
+            $html .= ' '.$k.'="'.htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'"';
+        }
+        return $html.'>';
+    }
+
     private function buildFormatSources(ResolvedImage $image, array $widths, string $sizes, ?int $height, ?string $fit): array
     {
         $sources = [];
@@ -201,8 +236,11 @@ class ResponsiveImage extends Tags
             }
 
             $meta = $this->metadata->for($resolved);
+            if ($meta->failed) {
+                continue;
+            }
             $entryRatio = $this->parseRatio($entry['ratio'] ?? null) ?? $parentRatio;
-            $widths = $this->srcsetBuilder->build((int) ($meta['width'] ?: 1920), $this->config);
+            $widths = $this->srcsetBuilder->build((int) ($meta->width ?: 1920), $this->config);
             $entryFit = $fit ?? ($entryRatio ? 'crop_focal' : 'contain');
             $height = $entryRatio
                 ? (int) round((end($widths) ?: 0) / $entryRatio)
@@ -216,7 +254,7 @@ class ResponsiveImage extends Tags
                 }
 
                 $mime = $format === 'fallback'
-                    ? ((string) ($meta['mime'] ?? 'image/jpeg'))
+                    ? ($meta->mime ?: 'image/jpeg')
                     : 'image/'.$format;
 
                 $result[] = [
@@ -290,7 +328,7 @@ class ResponsiveImage extends Tags
         return array_values(array_map('intval', array_filter(array_map('trim', explode(',', (string) $raw)))));
     }
 
-    private function resolveDimensions(array $params, array $meta, ?float $ratio, array $widths): array
+    private function resolveDimensions(array $params, ImageMetadata $meta, ?float $ratio, array $widths): array
     {
         $w = isset($params['width']) ? (int) $params['width'] : null;
         $h = isset($params['height']) ? (int) $params['height'] : null;
@@ -300,12 +338,12 @@ class ResponsiveImage extends Tags
         }
 
         if ($ratio !== null) {
-            $w ??= $widths ? (int) max($widths) : (int) $meta['width'];
+            $w ??= $widths ? (int) max($widths) : $meta->width;
             $h ??= (int) round($w / $ratio);
             return [$w, $h];
         }
 
-        return [(int) $meta['width'], (int) $meta['height']];
+        return [$meta->width, $meta->height];
     }
 
     private function resolveCaption(array $params, string $alt, bool $figure): ?string

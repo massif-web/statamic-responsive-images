@@ -46,8 +46,17 @@ return [
     ],
 
     'cache' => [
-        'store'  => null,
-        'ttl'    => null,
-        'prefix' => 'respimg',
+        'store'        => null,
+        'prefix'       => 'respimg',
+        // TTL (seconds) for successful metadata reads. Default: 90 days.
+        // The cache key includes the asset mtime, so updated files are picked
+        // up immediately; this TTL only bounds how long stale (unused) keys
+        // linger in the store.
+        'metadata_ttl' => 7_776_000,
+        // TTL (seconds) for failed metadata reads (corrupt/missing files, I/O
+        // errors). Short enough to recover quickly once the underlying issue
+        // is fixed, long enough to prevent per-request re-reads on a
+        // high-traffic page.
+        'sentinel_ttl' => 60,
     ],
 ];

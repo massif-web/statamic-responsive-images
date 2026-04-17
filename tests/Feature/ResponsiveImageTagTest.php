@@ -5,6 +5,7 @@ namespace Massif\ResponsiveImages\Tests\Feature;
 use Massif\ResponsiveImages\Tests\TestCase;
 use Massif\ResponsiveImages\Tags\ResponsiveImage;
 use Massif\ResponsiveImages\Image\ResolvedImage;
+use Massif\ResponsiveImages\Image\ImageMetadata;
 use Massif\ResponsiveImages\Image\ImageResolver;
 use Massif\ResponsiveImages\Image\Metadata;
 use Massif\ResponsiveImages\Image\MetadataReader;
@@ -17,14 +18,14 @@ use Illuminate\Cache\Repository;
 
 class ResponsiveImageTagTest extends TestCase
 {
-    private function makeTag(array $configOverrides = []): ResponsiveImage
+    private function makeTag(array $configOverrides = [], ?MetadataReader $reader = null): ResponsiveImage
     {
         $cache = new Repository(new ArrayStore);
 
-        $reader = new class extends MetadataReader {
-            public function read(ResolvedImage $image): array
+        $reader ??= new class extends MetadataReader {
+            public function read(ResolvedImage $image): ImageMetadata
             {
-                return ['width' => 1600, 'height' => 900, 'mime' => 'image/jpeg'];
+                return new ImageMetadata(1600, 900, 'image/jpeg');
             }
         };
 
@@ -185,6 +186,31 @@ class ResponsiveImageTagTest extends TestCase
 
         $this->assertStringContainsString('<figure>', $html);
         $this->assertStringNotContainsString('<figcaption', $html);
+    }
+
+    public function test_failed_metadata_renders_bare_img(): void
+    {
+        $reader = new class extends MetadataReader {
+            public function read(ResolvedImage $image): ImageMetadata
+            {
+                return ImageMetadata::failed();
+            }
+        };
+
+        $html = $this->makeTag([], $reader)->renderFromParams([
+            'src'   => '/uploads/broken.jpg',
+            'alt'   => 'broken thing',
+            'class' => 'hero',
+        ]);
+
+        $this->assertStringNotContainsString('<picture>', $html);
+        $this->assertStringNotContainsString('srcset=', $html);
+        $this->assertStringNotContainsString('width=', $html);
+        $this->assertStringContainsString('<img', $html);
+        $this->assertStringContainsString('src="/uploads/broken.jpg"', $html);
+        $this->assertStringContainsString('alt="broken thing"', $html);
+        $this->assertStringContainsString('loading="lazy"', $html);
+        $this->assertStringContainsString('class="hero"', $html);
     }
 
     public function test_art_direction_sources(): void

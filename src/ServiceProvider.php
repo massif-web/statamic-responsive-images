@@ -38,7 +38,8 @@ class ServiceProvider extends AddonServiceProvider
                 $app->make(MetadataReader::class),
                 $app['cache']->store($config['cache']['store'] ?? null),
                 $config['cache']['prefix'] ?? 'respimg',
-                $config['cache']['ttl'] ?? null,
+                (int) ($config['cache']['metadata_ttl'] ?? 7_776_000),
+                (int) ($config['cache']['sentinel_ttl'] ?? 60),
             );
         });
 

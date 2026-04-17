@@ -2,30 +2,37 @@
 
 namespace Massif\ResponsiveImages\Image;
 
+use Illuminate\Support\Facades\Log;
+
 class MetadataReader
 {
-    /**
-     * @return array{width: int, height: int, mime: string}
-     */
-    public function read(ResolvedImage $image): array
+    public function read(ResolvedImage $image): ImageMetadata
     {
-        if ($image->isAsset() && $image->asset !== null) {
-            return [
-                'width'  => (int) $image->asset->width(),
-                'height' => (int) $image->asset->height(),
-                'mime'   => (string) $image->asset->mimeType(),
-            ];
-        }
+        try {
+            if ($image->isAsset() && $image->asset !== null) {
+                return new ImageMetadata(
+                    (int) $image->asset->width(),
+                    (int) $image->asset->height(),
+                    (string) $image->asset->mimeType(),
+                );
+            }
 
-        $info = @getimagesize((string) $image->url);
-        if ($info === false) {
-            return ['width' => 0, 'height' => 0, 'mime' => 'application/octet-stream'];
-        }
+            $info = @getimagesize((string) $image->url);
+            if ($info === false) {
+                return ImageMetadata::failed();
+            }
 
-        return [
-            'width'  => (int) $info[0],
-            'height' => (int) $info[1],
-            'mime'   => (string) $info['mime'],
-        ];
+            return new ImageMetadata(
+                (int) $info[0],
+                (int) $info[1],
+                (string) $info['mime'],
+            );
+        } catch (\Exception $e) {
+            Log::warning('[responsive_image] metadata read failed', [
+                'id'    => $image->id,
+                'error' => $e->getMessage(),
+            ]);
+            return ImageMetadata::failed();
+        }
     }
 }
