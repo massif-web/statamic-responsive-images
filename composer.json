@@ -1,42 +1,49 @@
 {
-    "name": "massif/responsive-images",
-    "description": "Production-ready responsive image Antlers tag for Statamic 6.",
-    "type": "statamic-addon",
-    "license": "MIT",
-    "require": {
-        "php": "^8.2",
-        "statamic/cms": "^6.0"
-    },
-    "require-dev": {
-        "orchestra/testbench": "^10.0",
-        "phpunit/phpunit": "^11.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "Massif\\ResponsiveImages\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Massif\\ResponsiveImages\\Tests\\": "tests/"
-        }
-    },
-    "extra": {
-        "statamic": {
-            "name": "Responsive Images",
-            "description": "Responsive image Antlers tag"
-        },
-        "laravel": {
-            "providers": [
-                "Massif\\ResponsiveImages\\ServiceProvider"
-            ]
-        }
-    },
-    "minimum-stability": "stable",
-    "prefer-stable": true,
-    "config": {
-        "allow-plugins": {
-            "pixelfear/composer-dist-plugin": true
-        }
+  "name": "massif/responsive-images",
+  "description": "Production-ready responsive image Antlers tag for Statamic 6.",
+  "type": "statamic-addon",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Yves Torres, MASSIF Web Studio",
+      "email": "studio@massif.ch",
+      "role": "Developer"
     }
+  ],
+  "require": {
+    "php": "^8.2",
+    "statamic/cms": "^6.0"
+  },
+  "require-dev": {
+    "orchestra/testbench": "^10.0",
+    "phpunit/phpunit": "^11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Massif\\ResponsiveImages\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Massif\\ResponsiveImages\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "statamic": {
+      "name": "Responsive Images",
+      "description": "Responsive image Antlers tag"
+    },
+    "laravel": {
+      "providers": [
+        "Massif\\ResponsiveImages\\ServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "allow-plugins": {
+      "pixelfear/composer-dist-plugin": true
+    }
+  }
 }

@@ -72,6 +72,10 @@ class PictureRenderer
             $attrs['class'] = $img['class'];
         }
 
+        if ($attrs['alt'] === '') {
+            $attrs['aria-hidden'] = 'true';
+        }
+
         $styles = [];
 
         if (!empty($img['placeholder'])) {
@@ -83,6 +87,7 @@ class PictureRenderer
         if (!empty($img['object_position'])) {
             $safePos = preg_replace('/[^0-9%. \-]/', '', (string) $img['object_position']);
             if ($safePos !== '') {
+                $styles[] = '--focal-point:'.$safePos;
                 $styles[] = 'object-position:'.$safePos;
             }
         }

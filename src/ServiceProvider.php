@@ -10,15 +10,31 @@ use Massif\ResponsiveImages\Image\MetadataReader;
 use Massif\ResponsiveImages\Image\Placeholder;
 use Massif\ResponsiveImages\Image\SrcsetBuilder;
 use Massif\ResponsiveImages\Image\UrlBuilder;
+use Massif\ResponsiveImages\Aliases\Pic;
 use Massif\ResponsiveImages\Tags\ResponsiveImage;
+use Massif\ResponsiveImages\View\PassthroughRenderer;
 use Massif\ResponsiveImages\View\PictureRenderer;
+use Massif\ResponsiveImages\View\Preloader;
 use Statamic\Providers\AddonServiceProvider;
 
 class ServiceProvider extends AddonServiceProvider
 {
-    protected $tags = [
-        ResponsiveImage::class,
-    ];
+    protected $tags = [];
+
+    public function __construct($app)
+    {
+        parent::__construct($app);
+
+        $this->tags = [ResponsiveImage::class];
+
+        $alias = (string) ($app['config']->get('responsive-images.tag_alias') ?? '');
+        $alias = trim($alias);
+
+        if ($alias !== '' && $alias !== 'responsive_image') {
+            Pic::$handle = $alias;
+            $this->tags[] = Pic::class;
+        }
+    }
 
     public function register(): void
     {
@@ -27,6 +43,8 @@ class ServiceProvider extends AddonServiceProvider
         $this->app->singleton(SrcsetBuilder::class);
         $this->app->singleton(MetadataReader::class);
         $this->app->singleton(PictureRenderer::class);
+        $this->app->singleton(PassthroughRenderer::class);
+        $this->app->singleton(Preloader::class);
 
         $this->app->singleton(ImageResolver::class, fn () => new ImageResolver());
         $this->app->singleton(UrlBuilder::class, fn () => new UrlBuilder());

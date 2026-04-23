@@ -64,6 +64,19 @@ With an asset field:
 | `loading` | string | `lazy` (default), `eager`. |
 | `decoding` | string | `async` (default), `sync`, `auto`. |
 | `fetchpriority` | string | `auto` (default), `high`, `low`. |
+| `preload` | bool | Push a `<link rel="preload" as="image" …>` for the top enabled format onto the Antlers `head` stack. Works out of the box — Statamic's default head partial already renders that stack. See [Preload](#preload) below. |
+| `quality` | int | Override the quality for all formats on this render. Defaults to per-format quality from config. |
+| `formats` | csv\|array | Limit which formats are emitted. E.g. `formats="webp,fallback"`. Valid entries: `avif`, `webp`, `fallback`. |
+| `blur` | int | Glide blur passthrough. |
+| `brightness` | int | Glide brightness passthrough (-100..100). |
+| `contrast` | int | Glide contrast passthrough (-100..100). |
+| `sharpen` | int | Glide sharpen passthrough (0..100). |
+| `gamma` | float | Glide gamma passthrough. |
+| `pixelate` | int | Glide pixelate passthrough. |
+| `filter` | string | Glide filter passthrough (e.g. `sepia`, `greyscale`). |
+| `flip` | string | Glide flip passthrough (`h`, `v`, `both`). |
+| `orient` | int\|string | Glide orient passthrough (exif value or `0`/`90`/`180`/`270`). |
+| `bg` | string | Glide background colour passthrough (hex, rgb, rgba). |
 | `placeholder` | bool | Set `false` to disable the inline LQIP for this tag. |
 | `figure` | bool | Wrap output in `<figure>`. |
 | `caption` | string\|bool | Caption text (only rendered in figure mode). When omitted, the figure auto-captions from the resolved `alt` text. Pass `caption="false"` to disable the auto-caption. |
@@ -102,6 +115,79 @@ In figure mode, the tag auto-captions from the resolved `alt` text (which itself
 
 When the source is a Statamic asset with a focal point set in the CP, the tag emits an inline `object-position: x% y%` on the `<img>` so CSS-cropped layouts (e.g. `object-fit: cover` on a fixed-aspect container) keep the subject in frame. This is on by default, is a no-op when no focal point is set, and costs nothing when the CSS doesn't use `object-fit`.
 
+## Tag alias
+
+For brevity, the addon ships a short alias `{{ pic }}` alongside the canonical `{{ responsive_image }}`. Both tags share every behavior, parameter, and wildcard form:
+
+```antlers
+{{ pic :src="hero" alt="A sunset" }}
+{{ pic:hero alt="A sunset" }}
+```
+
+The alias handle is configurable:
+
+```php
+// config/responsive-images.php
+'tag_alias' => 'pic',   // set to any handle, or null to disable
+```
+
+## Wildcard form
+
+Resolve `src` from the template context by field name:
+
+```antlers
+{{ responsive_image:hero }}
+{{ pic:hero alt="Custom alt" }}
+```
+
+The tag suffix (after the `:`) is read from `$this->context`, so any field, augmented asset, or template variable on the current scope is usable.
+
+## Preload
+
+For above-the-fold images (LCP candidates), set `preload="true"`:
+
+```antlers
+{{ pic :src="hero" alt="…" preload="true" }}
+```
+
+The tag pushes a `<link rel="preload" as="image" imagesrcset=… imagesizes=… type="image/avif" fetchpriority="high">` onto the Antlers `head` stack. Statamic's default head partial (`vendor/statamic/cms/resources/views/partials/head.blade.php`) already renders that stack, so preload works out of the box on a stock layout.
+
+If you've replaced the default head partial with a fully custom one, make sure it still renders the stack:
+
+```antlers
+<head>
+    {{ stack name="head" }}
+</head>
+```
+
+When the stack is absent, Statamic silently discards the push — no error, but also no preload link in the output.
+
+When `preload="true"` is set, the tag also:
+
+- Sets `loading="eager"` on the `<img>` (unless you passed `loading="..."` explicitly).
+- Sets `fetchpriority="high"` on the `<img>` (unless you passed `fetchpriority="..."` explicitly).
+
+Both auto-behaviors are togglable in config:
+
+```php
+'preload' => [
+    'auto_eager'    => true,
+    'auto_priority' => true,
+],
+```
+
+**Format selection.** The preload link targets the highest-priority enabled format (AVIF → WebP → fallback). Browsers that can't decode the format (e.g. older browsers on an AVIF link) skip the preload — safe, because `type=` is set.
+
+**Limitations.**
+- Per-breakpoint preload for art-directed sources is not supported in v1 — the preload targets the primary `src`.
+- Needs a rendered `head` stack in your layout. Statamic's default partial provides this; only custom layouts that omit it would need to wire it in manually.
+
+## SVG and GIF
+
+SVG (`image/svg+xml`) and GIF (`image/gif`) sources skip the Glide pipeline entirely. The tag emits a plain `<img>` with the original URL, `width`/`height` from metadata when available, `class`, `loading`, `decoding`, and `aria-hidden="true"` when `alt` is empty. No `<picture>`, no `srcset`, no re-encoding — raster transforms would either produce meaningless output (SVG) or lose animation (GIF).
+
+Glide passthrough params (`blur`, `sharpen`, etc.) are ignored for these sources.
+
 ## Art direction
 
 Pass an array of entries via the `sources` parameter. Each entry becomes its own block of `<source>` elements with the given `media` query. Entries earlier in the array win (the browser picks the first matching `<source>`).
@@ -128,7 +214,8 @@ Each entry accepts `src` (required), `media`, `sizes`, and `ratio`. The last ent
 return [
     'device_sizes'   => [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     'image_sizes'    => [16, 32, 48, 64, 96, 128, 256, 384],
-    'default_sizes'  => '100vw',
+    'default_sizes'  => '(min-width: 1280px) 640px, (min-width: 768px) 50vw, 90vw',
+    'tag_alias'      => 'pic',
     'fallback_width' => 828,
 
     'formats' => [
@@ -144,14 +231,20 @@ return [
         'quality' => 40,
     ],
 
+    'preload' => [
+        'auto_eager'    => true,
+        'auto_priority' => true,
+    ],
+
     'glide' => [
         'default_fit' => 'crop_focal',
     ],
 
     'cache' => [
-        'store'  => null,      // null = default cache store
-        'ttl'    => null,      // null = forever
-        'prefix' => 'respimg',
+        'store'        => null,
+        'prefix'       => 'respimg',
+        'metadata_ttl' => 7_776_000,
+        'sentinel_ttl' => 60,
     ],
 ];
 ```

@@ -63,4 +63,78 @@ class MetadataReaderTest extends TestCase
             @unlink($tmp);
         }
     }
+
+    public function test_public_relative_url_resolves_against_public_path(): void
+    {
+        $dir = public_path('respimg-test');
+        @mkdir($dir, 0777, true);
+        $path = $dir.'/peak.png';
+        $png = imagecreatetruecolor(40, 20);
+        imagepng($png, $path);
+        imagedestroy($png);
+
+        try {
+            $reader = new MetadataReader();
+            $meta = $reader->read(new ResolvedImage(
+                asset: null,
+                id: 'rel',
+                mtime: 1,
+                url: '/respimg-test/peak.png',
+            ));
+
+            $this->assertFalse($meta->failed);
+            $this->assertSame(40, $meta->width);
+            $this->assertSame(20, $meta->height);
+            $this->assertSame('image/png', $meta->mime);
+        } finally {
+            @unlink($path);
+            @rmdir($dir);
+        }
+    }
+
+    public function test_unreadable_url_logs_warning_with_reason_unreadable(): void
+    {
+        \Illuminate\Support\Facades\Log::spy();
+
+        $reader = new MetadataReader();
+        $reader->read(new ResolvedImage(
+            asset: null,
+            id: 'missing',
+            mtime: 1,
+            url: '/this/path/does/not/exist.jpg',
+        ));
+
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')
+            ->withArgs(function (mixed $message, mixed $ctx = []) {
+                return $message === '[responsive_image] metadata read failed'
+                    && is_array($ctx)
+                    && ($ctx['reason'] ?? null) === 'unreadable'
+                    && ($ctx['id'] ?? null) === 'missing';
+            })
+            ->once();
+    }
+
+    public function test_asset_exception_logs_warning_with_reason_exception(): void
+    {
+        \Illuminate\Support\Facades\Log::spy();
+
+        $asset = $this->getMockBuilder(Asset::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['width'])
+            ->getMock();
+        $asset->method('width')->willThrowException(new RuntimeException('driver exploded'));
+
+        $reader = new MetadataReader();
+        $reader->read(new ResolvedImage(asset: $asset, id: 'bang', mtime: 1, url: null));
+
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')
+            ->withArgs(function (mixed $message, mixed $ctx = []) {
+                return $message === '[responsive_image] metadata read failed'
+                    && is_array($ctx)
+                    && ($ctx['reason'] ?? null) === 'exception'
+                    && ($ctx['id'] ?? null) === 'bang'
+                    && ($ctx['error'] ?? null) === 'driver exploded';
+            })
+            ->once();
+    }
 }

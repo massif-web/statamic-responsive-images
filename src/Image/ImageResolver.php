@@ -3,6 +3,7 @@
 namespace Massif\ResponsiveImages\Image;
 
 use Closure;
+use Illuminate\Support\Facades\Log;
 use Statamic\Contracts\Assets\Asset;
 use Statamic\Facades\Asset as AssetFacade;
 
@@ -22,8 +23,32 @@ class ImageResolver
             return null;
         }
 
+        if (is_array($src)) {
+            if ($src === []) {
+                return null;
+            }
+            if (count($src) > 1) {
+                try {
+                    Log::debug('[responsive_image] array src has multiple elements; using first', [
+                        'count' => count($src),
+                    ]);
+                } catch (\RuntimeException) {
+                    // No Laravel application container in this context; skip logging.
+                }
+            }
+            return $this->resolve($src[0]);
+        }
+
         if ($src instanceof Asset) {
             return $this->fromAsset($src);
+        }
+
+        if ($src instanceof \Traversable) {
+            return $this->resolve(iterator_to_array($src, false));
+        }
+
+        if ($src instanceof \Illuminate\Contracts\Support\Arrayable) {
+            return $this->resolve($src->toArray());
         }
 
         if (is_object($src) && method_exists($src, 'id') && method_exists($src, 'url')) {

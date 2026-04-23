@@ -8,7 +8,15 @@ return [
     'image_sizes'  => [16, 32, 48, 64, 96, 128, 256, 384],
 
     // Default sizes attribute when the tag caller does not provide one.
-    'default_sizes' => '100vw',
+    // Layout-aware default: caps hero images around 640px at desktop,
+    // scales to 50vw at tablet, 90vw at mobile. Override per-tag with
+    // sizes="..." when your layout differs.
+    'default_sizes' => '(min-width: 1280px) 640px, (min-width: 768px) 50vw, 90vw',
+
+    // Short alias handle for the tag. `null` disables the alias.
+    // When non-null, the addon registers a second tag class (`Pic`)
+    // with this handle, sharing all behavior with {{ responsive_image }}.
+    'tag_alias' => 'pic',
 
     // Fallback <img src> width target. Fixed, for browsers that do not
     // match any <source>. Glide will pick the closest available.
@@ -25,6 +33,16 @@ return [
         'width'   => 32,
         'blur'    => 40,
         'quality' => 40,
+    ],
+
+    // Preload behavior when tag is called with preload="true".
+    'preload' => [
+        // When true, also sets loading="eager" on the <img> (unless
+        // the caller passed an explicit `loading`).
+        'auto_eager' => true,
+        // When true, also sets fetchpriority="high" on the <img>
+        // (unless the caller passed an explicit `fetchpriority`).
+        'auto_priority' => true,
     ],
 
     'glide' => [

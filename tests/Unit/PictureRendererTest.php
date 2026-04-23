@@ -120,7 +120,7 @@ class PictureRendererTest extends TestCase
         $html = (new PictureRenderer())->render($data);
 
         $this->assertStringContainsString(
-            "background-size:cover;background-image:url('data:image/jpeg;base64,AAA');object-position:50% 10%",
+            "background-size:cover;background-image:url('data:image/jpeg;base64,AAA');--focal-point:50% 10%;object-position:50% 10%",
             $html
         );
     }
@@ -136,5 +136,37 @@ class PictureRendererTest extends TestCase
         $html = (new PictureRenderer())->render($data);
 
         $this->assertStringContainsString('media="(max-width: 768px)"', $html);
+    }
+
+    public function test_focal_point_emits_css_variable_and_object_position(): void
+    {
+        $data = $this->baseData();
+        $data['img']['object_position'] = '25% 75%';
+
+        $html = (new PictureRenderer())->render($data);
+
+        $this->assertStringContainsString('--focal-point:25% 75%', $html);
+        $this->assertStringContainsString('object-position:25% 75%', $html);
+    }
+
+    public function test_aria_hidden_when_alt_empty(): void
+    {
+        $data = $this->baseData();
+        $data['img']['alt'] = '';
+
+        $html = (new PictureRenderer())->render($data);
+
+        $this->assertStringContainsString('alt=""', $html);
+        $this->assertStringContainsString('aria-hidden="true"', $html);
+    }
+
+    public function test_no_aria_hidden_when_alt_present(): void
+    {
+        $data = $this->baseData();
+        $data['img']['alt'] = 'described';
+
+        $html = (new PictureRenderer())->render($data);
+
+        $this->assertStringNotContainsString('aria-hidden', $html);
     }
 }
