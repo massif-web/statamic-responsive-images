@@ -13,7 +13,7 @@ Srcset generation follows the [next/image](https://nextjs.org/docs/app/api-refer
 ## Installation
 
 ```bash
-composer require massif/responsive-images
+composer require massif/statamic-responsive-images
 ```
 
 The addon auto-registers via its service provider. Publish the config if you want to tweak defaults:
@@ -32,12 +32,25 @@ Output (simplified):
 
 ```html
 <picture>
-  <source type="image/avif" srcset="/img/.../avif 640w, ..." sizes="100vw">
-  <source type="image/webp" srcset="/img/.../webp 640w, ..." sizes="100vw">
-  <img src="/img/.../828w" srcset="..." sizes="100vw"
-       width="1600" height="900" alt="A sunset over the coast"
-       loading="lazy" decoding="async" fetchpriority="auto"
-       style="background-size:cover;background-image:url('data:image/jpeg;base64,...')">
+  <source
+    type="image/avif"
+    srcset="/img/.../avif 640w, ..."
+    sizes="100vw" />
+  <source
+    type="image/webp"
+    srcset="/img/.../webp 640w, ..."
+    sizes="100vw" />
+  <img
+    src="/img/.../828w"
+    srcset="..."
+    sizes="100vw"
+    width="1600"
+    height="900"
+    alt="A sunset over the coast"
+    loading="lazy"
+    decoding="async"
+    fetchpriority="auto"
+    style="background-size:cover;background-image:url('data:image/jpeg;base64,...')" />
 </picture>
 ```
 
@@ -49,39 +62,39 @@ With an asset field:
 
 ## Parameters
 
-| Param | Type | Description |
-|---|---|---|
-| `src` | string\|Asset | **Required.** URL, `assets::id`, or Asset instance. Empty values render nothing. |
-| `alt` | string | Alt text. Falls back to the asset's `alt` field. Missing alt is logged as a warning. |
-| `sizes` | string | `sizes` attribute. Defaults to `default_sizes` from config. |
-| `widths` | array\|csv | Override the srcset pool. E.g. `widths="400,800,1200"`. |
-| `ratio` | string | Force an aspect ratio. Accepts `16/9` or `16:9`. Drives crop height on every srcset entry. |
-| `width` | int | Explicit intrinsic width. |
-| `height` | int | Explicit intrinsic height. |
-| `fit` | string | Glide fit mode. Defaults to `glide.default_fit` (`crop_focal`) when a ratio is set. Without a ratio, URLs use `fit=contain` so Glide scales proportionally. |
-| `class` | string | Class for the outermost rendered element. Lands on the wrapper when `figure` or `ratio_wrapper` is used, otherwise on the `<img>`. |
-| `img_class` | string | Class applied directly to the `<img>`. Merges with `class` when there's no wrapper. |
-| `loading` | string | `lazy` (default), `eager`. |
-| `decoding` | string | `async` (default), `sync`, `auto`. |
-| `fetchpriority` | string | `auto` (default), `high`, `low`. |
-| `preload` | bool | Push a `<link rel="preload" as="image" …>` for the top enabled format onto the Antlers `head` stack. Works out of the box — Statamic's default head partial already renders that stack. See [Preload](#preload) below. |
-| `quality` | int | Override the quality for all formats on this render. Defaults to per-format quality from config. |
-| `formats` | csv\|array | Limit which formats are emitted. E.g. `formats="webp,fallback"`. Valid entries: `avif`, `webp`, `fallback`. |
-| `blur` | int | Glide blur passthrough. |
-| `brightness` | int | Glide brightness passthrough (-100..100). |
-| `contrast` | int | Glide contrast passthrough (-100..100). |
-| `sharpen` | int | Glide sharpen passthrough (0..100). |
-| `gamma` | float | Glide gamma passthrough. |
-| `pixelate` | int | Glide pixelate passthrough. |
-| `filter` | string | Glide filter passthrough (e.g. `sepia`, `greyscale`). |
-| `flip` | string | Glide flip passthrough (`h`, `v`, `both`). |
-| `orient` | int\|string | Glide orient passthrough (exif value or `0`/`90`/`180`/`270`). |
-| `bg` | string | Glide background colour passthrough (hex, rgb, rgba). |
-| `placeholder` | bool | Set `false` to disable the inline LQIP for this tag. |
-| `figure` | bool | Wrap output in `<figure>`. |
-| `caption` | string\|bool | Caption text (only rendered in figure mode). When omitted, the figure auto-captions from the resolved `alt` text. Pass `caption="false"` to disable the auto-caption. |
-| `ratio_wrapper` | bool | Wrap output in a `<div style="aspect-ratio:…">`. |
-| `sources` | array | Art-direction sources. See below. |
+| Param           | Type          | Description                                                                                                                                                                                                            |
+| --------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src`           | string\|Asset | **Required.** URL, `assets::id`, or Asset instance. Empty values render nothing.                                                                                                                                       |
+| `alt`           | string        | Alt text. Falls back to the asset's `alt` field. Missing alt is logged as a warning.                                                                                                                                   |
+| `sizes`         | string        | `sizes` attribute. Defaults to `default_sizes` from config.                                                                                                                                                            |
+| `widths`        | array\|csv    | Override the srcset pool. E.g. `widths="400,800,1200"`.                                                                                                                                                                |
+| `ratio`         | string        | Force an aspect ratio. Accepts `16/9` or `16:9`. Drives crop height on every srcset entry.                                                                                                                             |
+| `width`         | int           | Explicit intrinsic width.                                                                                                                                                                                              |
+| `height`        | int           | Explicit intrinsic height.                                                                                                                                                                                             |
+| `fit`           | string        | Glide fit mode. Defaults to `glide.default_fit` (`crop_focal`) when a ratio is set. Without a ratio, URLs use `fit=contain` so Glide scales proportionally.                                                            |
+| `class`         | string        | Class for the outermost rendered element. Lands on the wrapper when `figure` or `ratio_wrapper` is used, otherwise on the `<img>`.                                                                                     |
+| `img_class`     | string        | Class applied directly to the `<img>`. Merges with `class` when there's no wrapper.                                                                                                                                    |
+| `loading`       | string        | `lazy` (default), `eager`.                                                                                                                                                                                             |
+| `decoding`      | string        | `async` (default), `sync`, `auto`.                                                                                                                                                                                     |
+| `fetchpriority` | string        | `auto` (default), `high`, `low`.                                                                                                                                                                                       |
+| `preload`       | bool          | Push a `<link rel="preload" as="image" …>` for the top enabled format onto the Antlers `head` stack. Works out of the box — Statamic's default head partial already renders that stack. See [Preload](#preload) below. |
+| `quality`       | int           | Override the quality for all formats on this render. Defaults to per-format quality from config.                                                                                                                       |
+| `formats`       | csv\|array    | Limit which formats are emitted. E.g. `formats="webp,fallback"`. Valid entries: `avif`, `webp`, `fallback`.                                                                                                            |
+| `blur`          | int           | Glide blur passthrough.                                                                                                                                                                                                |
+| `brightness`    | int           | Glide brightness passthrough (-100..100).                                                                                                                                                                              |
+| `contrast`      | int           | Glide contrast passthrough (-100..100).                                                                                                                                                                                |
+| `sharpen`       | int           | Glide sharpen passthrough (0..100).                                                                                                                                                                                    |
+| `gamma`         | float         | Glide gamma passthrough.                                                                                                                                                                                               |
+| `pixelate`      | int           | Glide pixelate passthrough.                                                                                                                                                                                            |
+| `filter`        | string        | Glide filter passthrough (e.g. `sepia`, `greyscale`).                                                                                                                                                                  |
+| `flip`          | string        | Glide flip passthrough (`h`, `v`, `both`).                                                                                                                                                                             |
+| `orient`        | int\|string   | Glide orient passthrough (exif value or `0`/`90`/`180`/`270`).                                                                                                                                                         |
+| `bg`            | string        | Glide background colour passthrough (hex, rgb, rgba).                                                                                                                                                                  |
+| `placeholder`   | bool          | Set `false` to disable the inline LQIP for this tag.                                                                                                                                                                   |
+| `figure`        | bool          | Wrap output in `<figure>`.                                                                                                                                                                                             |
+| `caption`       | string\|bool  | Caption text (only rendered in figure mode). When omitted, the figure auto-captions from the resolved `alt` text. Pass `caption="false"` to disable the auto-caption.                                                  |
+| `ratio_wrapper` | bool          | Wrap output in a `<div style="aspect-ratio:…">`.                                                                                                                                                                       |
+| `sources`       | array         | Art-direction sources. See below.                                                                                                                                                                                      |
 
 ### Classes
 
@@ -179,6 +192,7 @@ Both auto-behaviors are togglable in config:
 **Format selection.** The preload link targets the highest-priority enabled format (AVIF → WebP → fallback). Browsers that can't decode the format (e.g. older browsers on an AVIF link) skip the preload — safe, because `type=` is set.
 
 **Limitations.**
+
 - Per-breakpoint preload for art-directed sources is not supported in v1 — the preload targets the primary `src`.
 - Needs a rendered `head` stack in your layout. Statamic's default partial provides this; only custom layouts that omit it would need to wire it in manually.
 
@@ -195,6 +209,7 @@ Pass an array of entries via the `sources` parameter. Each entry becomes its own
 **Antlers limitation — sources must be a variable, not an inline literal.** Antlers' expression parser chokes on inline array literals whose string values contain colons (e.g. `(max-width: 768px)`), so you cannot pass `:sources="[{...}]"` directly in a template. Build the array outside the template and pass it by name. The cleanest options:
 
 1. **Blueprint field.** Add a `replicator` or `grid` field called `image_sources` with `src`, `media`, `sizes`, and `ratio` subfields, then:
+
    ```antlers
    {{ responsive_image :src="hero_desktop" :sources="image_sources" }}
    ```

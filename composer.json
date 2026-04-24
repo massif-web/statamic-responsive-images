@@ -1,5 +1,5 @@
 {
-  "name": "massif/responsive-images",
+  "name": "massif/statamic-responsive-images",
   "description": "Production-ready responsive image Antlers tag for Statamic 6.",
   "type": "statamic-addon",
   "license": "MIT",
