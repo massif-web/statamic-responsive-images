@@ -30,7 +30,7 @@
   },
   "extra": {
     "statamic": {
-      "name": "Responsive Images",
+      "name": "MASSIF Responsive Images",
       "description": "Responsive image Antlers tag"
     },
     "laravel": {
