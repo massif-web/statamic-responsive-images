@@ -253,6 +253,8 @@ return [
 
 **Format quality.** AVIF defaults to 50, WebP to 75, fallback to 82. Lower values ship smaller bytes; tune per project.
 
+**Placeholder integration with `daun/statamic-placeholders`.** If you install the [`daun/statamic-placeholders`](https://github.com/daun/statamic-placeholders) addon, its placeholder data (ThumbHash, BlurHash, or Average color — whichever you've configured on the asset's `placeholder` field) is auto-detected and used in preference to the built-in Glide LQIP. When the asset has no placeholder data or when `src` is a raw URL, we silently fall back to the Glide LQIP — output shape is unchanged (still a base64 data URI on `background-image`). Provider choice lives entirely in that addon; we don't expose a provider knob, since mismatching our override against the blueprint's `placeholder_type` would silently miss and fall back. Disable the integration by setting `placeholder.statamic_placeholders.enabled` to `false`.
+
 ## Performance notes
 
 - **Metadata is cached** by `{prefix}:meta:{id}:{mtime}`. Changing the source file invalidates automatically.

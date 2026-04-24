@@ -8,6 +8,7 @@ use Massif\ResponsiveImages\Image\ImageResolver;
 use Massif\ResponsiveImages\Image\Metadata;
 use Massif\ResponsiveImages\Image\MetadataReader;
 use Massif\ResponsiveImages\Image\Placeholder;
+use Massif\ResponsiveImages\Image\ResolvedImage;
 use Massif\ResponsiveImages\Image\SrcsetBuilder;
 use Massif\ResponsiveImages\Image\UrlBuilder;
 use Massif\ResponsiveImages\Aliases\Pic;
@@ -64,8 +65,25 @@ class ServiceProvider extends AddonServiceProvider
         $this->app->singleton(Placeholder::class, function ($app) {
             $config = $app['config']->get('responsive-images');
 
+            $integration = $config['placeholder']['statamic_placeholders'] ?? [];
+            $externalResolver = null;
+
+            if (
+                ! empty($integration['enabled'])
+                && class_exists(\Daun\StatamicPlaceholders\Facades\Placeholders::class)
+            ) {
+                $externalResolver = function (ResolvedImage $image): ?string {
+                    if (! $image->isAsset() || $image->asset === null) {
+                        return null;
+                    }
+
+                    return \Daun\StatamicPlaceholders\Facades\Placeholders::uri($image->asset);
+                };
+            }
+
             return new Placeholder(
-                $app['cache']->store($config['cache']['store'] ?? null),
+                cache: $app['cache']->store($config['cache']['store'] ?? null),
+                externalResolver: $externalResolver,
             );
         });
     }

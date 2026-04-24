@@ -33,6 +33,19 @@ return [
         'width'   => 32,
         'blur'    => 40,
         'quality' => 40,
+
+        // Integration with daun/statamic-placeholders. When enabled and the
+        // addon is installed, its placeholder data (ThumbHash / BlurHash /
+        // Average color, per the asset's placeholder field) is used in
+        // preference to the built-in Glide LQIP. Falls back to Glide LQIP
+        // when the asset has no placeholder data or when src is a raw URL.
+        //
+        // Provider selection (ThumbHash vs BlurHash vs Average color) is
+        // owned entirely by daun/statamic-placeholders — configure it there
+        // via the field's `placeholder_type` or the addon's `default_provider`.
+        'statamic_placeholders' => [
+            'enabled' => true,
+        ],
     ],
 
     // Preload behavior when tag is called with preload="true".

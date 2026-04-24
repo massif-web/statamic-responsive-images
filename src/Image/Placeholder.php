@@ -12,11 +12,16 @@ class Placeholder
     /** @var Closure|null */
     private $fetcher;
 
+    /** @var Closure|null */
+    private $externalResolver;
+
     public function __construct(
         private CacheRepository $cache,
         ?Closure $fetcher = null,
+        ?Closure $externalResolver = null,
     ) {
         $this->fetcher = $fetcher;
+        $this->externalResolver = $externalResolver;
     }
 
     public function dataUri(ResolvedImage $image, array $config): ?string
@@ -24,6 +29,13 @@ class Placeholder
         $cfg = $config['placeholder'] ?? [];
         if (empty($cfg['enabled'])) {
             return null;
+        }
+
+        if ($this->externalResolver !== null) {
+            $uri = ($this->externalResolver)($image, $cfg);
+            if (is_string($uri) && $uri !== '') {
+                return $uri;
+            }
         }
 
         $prefix = $config['cache']['prefix'] ?? 'respimg';
