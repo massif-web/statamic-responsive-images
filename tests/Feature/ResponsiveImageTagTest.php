@@ -12,6 +12,7 @@ use Massif\ResponsiveImages\Image\MetadataReader;
 use Massif\ResponsiveImages\Image\SrcsetBuilder;
 use Massif\ResponsiveImages\Image\UrlBuilder;
 use Massif\ResponsiveImages\Image\Placeholder;
+use Massif\ResponsiveImages\Image\FormatPolicy;
 use Massif\ResponsiveImages\View\PictureRenderer;
 use Massif\ResponsiveImages\View\PassthroughRenderer;
 use Illuminate\Cache\ArrayStore;
@@ -21,8 +22,11 @@ class ResponsiveImageTagTest extends TestCase
 {
     private array $preloaded = [];
 
-    private function makeTag(array $configOverrides = [], ?MetadataReader $reader = null): ResponsiveImage
-    {
+    private function makeTag(
+        array $configOverrides = [],
+        ?MetadataReader $reader = null,
+        ?callable $canEncode = null
+    ): ResponsiveImage {
         $cache = new Repository(new ArrayStore);
 
         $reader ??= new class extends MetadataReader {
@@ -54,11 +58,14 @@ class ResponsiveImageTagTest extends TestCase
         $baseConfig = require __DIR__.'/../../config/responsive-images.php';
         $config = array_replace_recursive($baseConfig, $configOverrides);
 
+        $formatPolicy = new FormatPolicy($config, $canEncode ?? fn () => true);
+
         return new ResponsiveImage(
             $resolver, $metadata, $srcset, $urls, $placeholder,
             new PictureRenderer(),
-            new \Massif\ResponsiveImages\View\PassthroughRenderer(),
+            new PassthroughRenderer(),
             $preloader,
+            formatPolicy: $formatPolicy,
             config: $config,
         );
     }
@@ -440,11 +447,12 @@ class ResponsiveImageTagTest extends TestCase
         $placeholder = new Placeholder(cache: $cache, fetcher: fn () => ['bytes' => 'P', 'mime' => 'image/jpeg']);
 
         $baseConfig = require __DIR__.'/../../config/responsive-images.php';
+        $formatPolicy = new FormatPolicy($baseConfig, fn () => true);
 
         $args = [$resolver, $metadata, $srcset, $urls, $placeholder, new PictureRenderer(), new \Massif\ResponsiveImages\View\PassthroughRenderer(), new \Massif\ResponsiveImages\View\Preloader()];
 
-        $tag = new ResponsiveImage(...$args, config: $baseConfig);
-        $pic = new \Massif\ResponsiveImages\Aliases\Pic(...$args, config: $baseConfig);
+        $tag = new ResponsiveImage(...$args, formatPolicy: $formatPolicy, config: $baseConfig);
+        $pic = new \Massif\ResponsiveImages\Aliases\Pic(...$args, formatPolicy: $formatPolicy, config: $baseConfig);
 
         $params = ['src' => '/p.jpg', 'alt' => 'x'];
 
@@ -552,5 +560,41 @@ class ResponsiveImageTagTest extends TestCase
         ]);
 
         $this->assertSame([], $this->preloaded);
+    }
+
+    public function test_gating_drops_avif_when_driver_cannot_encode(): void
+    {
+        $html = $this->makeTag([], null, fn (string $f) => $f !== 'avif')
+            ->renderFromParams(['src' => '/p.jpg', 'alt' => 'x']);
+
+        $this->assertStringNotContainsString('type="image/avif"', $html);
+        $this->assertStringContainsString('type="image/webp"', $html);
+        $this->assertStringContainsString('<img', $html);
+    }
+
+    public function test_min_width_threshold_serves_fallback_only_for_small_images(): void
+    {
+        $html = $this->makeTag(['formats' => ['min_width' => 900]])
+            ->renderFromParams(['src' => '/p.jpg', 'alt' => 'x', 'widths' => '320,640']);
+
+        $this->assertStringNotContainsString('type="image/avif"', $html);
+        $this->assertStringNotContainsString('type="image/webp"', $html);
+        $this->assertStringContainsString('<img', $html);
+    }
+
+    public function test_avif_source_dropped_when_all_widths_below_16px_floor(): void
+    {
+        $reader = new class extends MetadataReader {
+            public function read(ResolvedImage $image): ImageMetadata
+            {
+                return new ImageMetadata(20, 10, 'image/jpeg');
+            }
+        };
+
+        $html = $this->makeTag([], $reader)
+            ->renderFromParams(['src' => '/tiny.jpg', 'alt' => 'x', 'ratio' => '16/9']);
+
+        $this->assertStringNotContainsString('type="image/avif"', $html);
+        $this->assertStringContainsString('type="image/webp"', $html);
     }
 }

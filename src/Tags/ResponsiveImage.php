@@ -4,6 +4,7 @@ namespace Massif\ResponsiveImages\Tags;
 
 use Illuminate\Support\Facades\Log;
 use Statamic\Tags\Tags;
+use Massif\ResponsiveImages\Image\FormatPolicy;
 use Massif\ResponsiveImages\Image\ImageMetadata;
 use Massif\ResponsiveImages\Image\ImageResolver;
 use Massif\ResponsiveImages\Image\Metadata;
@@ -32,6 +33,7 @@ class ResponsiveImage extends Tags
     private ?PictureRenderer $renderer;
     private ?PassthroughRenderer $passthrough;
     private ?Preloader $preloader;
+    private ?FormatPolicy $formatPolicy;
     private ?array $config;
 
     public function __construct(
@@ -43,6 +45,7 @@ class ResponsiveImage extends Tags
         ?PictureRenderer $renderer = null,
         ?PassthroughRenderer $passthrough = null,
         ?Preloader $preloader = null,
+        ?FormatPolicy $formatPolicy = null,
         ?array $config = null,
     ) {
         $this->resolver      = $resolver;
@@ -53,6 +56,7 @@ class ResponsiveImage extends Tags
         $this->renderer      = $renderer;
         $this->passthrough   = $passthrough;
         $this->preloader     = $preloader;
+        $this->formatPolicy  = $formatPolicy;
         $this->config        = $config;
     }
 
@@ -112,6 +116,7 @@ class ResponsiveImage extends Tags
         $this->renderer      ??= app(PictureRenderer::class);
         $this->passthrough   ??= app(PassthroughRenderer::class);
         $this->preloader     ??= app(Preloader::class);
+        $this->formatPolicy  ??= app(FormatPolicy::class);
         $this->config        ??= config('responsive-images');
     }
 
@@ -143,7 +148,13 @@ class ResponsiveImage extends Tags
 
         $sizes = (string) ($params['sizes'] ?? $this->config['default_sizes']);
 
-        [$activeFormats, $qualityOverride] = $this->resolveFormatsAndQuality($params);
+        $qualityOverride = (isset($params['quality']) && is_numeric($params['quality']))
+            ? (int) $params['quality']
+            : null;
+        $activeFormats = $this->formatPolicy->formatsFor(
+            $this->parseFormats($params['formats'] ?? null),
+            (int) max($widths),
+        );
 
         $extras = $this->extrasFromParams($params);
         $artDirection = $params['sources'] ?? null;
@@ -263,9 +274,13 @@ class ResponsiveImage extends Tags
             if (! in_array($format, $activeFormats, true)) {
                 continue;
             }
+            $srcset = $this->buildSrcset($image, $widths, $format, $height, $fit, $qualityOverride, $extras);
+            if ($srcset === '') {
+                continue;
+            }
             $sources[] = [
                 'type'   => 'image/'.$format,
-                'srcset' => $this->buildSrcset($image, $widths, $format, $height, $fit, $qualityOverride, $extras),
+                'srcset' => $srcset,
                 'sizes'  => $sizes,
                 'media'  => null,
             ];
@@ -296,13 +311,18 @@ class ResponsiveImage extends Tags
             $media = $entry['media'] ?? null;
 
             foreach ($activeFormats as $format) {
+                $srcset = $this->buildSrcset($resolved, $widths, $format, $height, $entryFit, $qualityOverride, $extras);
+                if ($srcset === '') {
+                    continue;
+                }
+
                 $mime = $format === 'fallback'
                     ? ($meta->mime ?: 'image/jpeg')
                     : 'image/'.$format;
 
                 $result[] = [
                     'type'   => $mime,
-                    'srcset' => $this->buildSrcset($resolved, $widths, $format, $height, $entryFit, $qualityOverride, $extras),
+                    'srcset' => $srcset,
                     'sizes'  => $sizes,
                     'media'  => $media,
                 ];
@@ -324,12 +344,18 @@ class ResponsiveImage extends Tags
             $h = $height !== null && $maxWidth > 0
                 ? (int) round($w * ($height / $maxWidth))
                 : null;
+
+            if ($format === 'avif' && ! $this->formatPolicy->avifWidthAllowed($w, $h)) {
+                continue;
+            }
+
             $parts[] = $this->urlBuilder->build($image,
                 width: $w, format: $format, quality: $quality, height: $h, fit: $fit,
                 extras: $extras,
             ).' '.$w.'w';
         }
-        return implode(', ', $parts);
+
+        return $parts === [] ? '' : implode(', ', $parts);
     }
 
     private function placeholderValue(array $params, ResolvedImage $image): ?string
@@ -473,21 +499,6 @@ class ResponsiveImage extends Tags
     }
 
     /**
-     * @return array{0: list<string>, 1: ?int}
-     */
-    private function resolveFormatsAndQuality(array $params): array
-    {
-        $quality = isset($params['quality']) && is_numeric($params['quality'])
-            ? (int) $params['quality']
-            : null;
-
-        $override = $this->parseFormats($params['formats'] ?? null);
-        $formats  = $override ?? $this->enabledFormats();
-
-        return [$formats, $quality];
-    }
-
-    /**
      * @return list<string>|null
      */
     private function parseFormats(mixed $raw): ?array
@@ -506,21 +517,6 @@ class ResponsiveImage extends Tags
         ));
 
         return $valid === [] ? null : $valid;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function enabledFormats(): array
-    {
-        $out = [];
-        foreach (['avif', 'webp'] as $f) {
-            if (! empty($this->config['formats'][$f]['enabled'])) {
-                $out[] = $f;
-            }
-        }
-        $out[] = 'fallback';
-        return $out;
     }
 
     private function qualityFor(string $format, ?int $override): int

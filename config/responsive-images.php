@@ -26,6 +26,18 @@ return [
         'avif'     => ['enabled' => true, 'quality' => 50],
         'webp'     => ['enabled' => true, 'quality' => 75],
         'fallback' => ['quality' => 82],
+
+        // Only emit an AVIF/WebP <source> when the active imaging driver can
+        // actually encode it (probed via Statamic's ImageValidator). Prevents
+        // broken images on servers whose GD/Imagick lacks the format — <picture>
+        // does NOT fall back on a failed <source>. Set false only when a
+        // transform-CDN serves formats the local driver cannot.
+        'detect_support' => true,
+
+        // Below this rendered max width, skip AVIF/WebP and serve the fallback
+        // only. 0 disables. A good value for sites with many small thumbnails is
+        // ~320 — modern-format overhead rarely pays off on tiny images.
+        'min_width' => 0,
     ],
 
     'placeholder' => [

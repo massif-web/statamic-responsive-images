@@ -4,6 +4,7 @@ namespace Massif\ResponsiveImages;
 
 use League\Glide\Server;
 use Massif\ResponsiveImages\Glide\ColorProfile;
+use Massif\ResponsiveImages\Image\FormatPolicy;
 use Massif\ResponsiveImages\Image\ImageResolver;
 use Massif\ResponsiveImages\Image\Metadata;
 use Massif\ResponsiveImages\Image\MetadataReader;
@@ -42,6 +43,31 @@ class ServiceProvider extends AddonServiceProvider
         parent::register();
 
         $this->app->singleton(SrcsetBuilder::class);
+
+        $this->app->singleton(FormatPolicy::class, function ($app) {
+            $config = $app['config']->get('responsive-images');
+
+            $memo = [];
+            $canEncode = function (string $format) use ($app, &$memo): bool {
+                if (! array_key_exists($format, $memo)) {
+                    try {
+                        // ponytail: in-memory memo; imagetypes()/queryFormats() are cheap
+                        $memo[$format] = (bool) $app->make(\Statamic\Imaging\ImageValidator::class)
+                            ->isValidImage($format, 'image/'.$format);
+                    } catch (\Throwable) {
+                        // Probe failed: treat as unsupported. Emitting a <source>
+                        // the server can't produce is harmful — <picture> does not
+                        // fall back on a 5xx source. The fallback <img> still serves.
+                        $memo[$format] = false;
+                    }
+                }
+
+                return $memo[$format];
+            };
+
+            return new FormatPolicy($config, $canEncode);
+        });
+
         $this->app->singleton(MetadataReader::class);
         $this->app->singleton(PictureRenderer::class);
         $this->app->singleton(PassthroughRenderer::class);
