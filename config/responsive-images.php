@@ -40,6 +40,12 @@ return [
         'min_width' => 0,
     ],
 
+    'markup' => [
+        // Prepend sizes="auto, …" on lazy images (WHATWG auto-sizes). Older
+        // browsers ignore the token and use the remaining source-sizes.
+        'auto_sizes' => true,
+    ],
+
     'placeholder' => [
         'enabled' => true,
         'width'   => 32,

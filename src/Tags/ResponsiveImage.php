@@ -240,17 +240,31 @@ class ResponsiveImage extends Tags
             }
         }
 
+        $loading = $params['loading'] ?? $loadingDefault;
+
+        // WHATWG auto-sizes: valid only with loading="lazy". Older browsers ignore
+        // the `auto` token and fall through to the next source-size. Applied after
+        // the preload block so preload links keep the resolvable sizes.
+        $imgSizes = $sizes;
+        if (($this->config['markup']['auto_sizes'] ?? true) && $loading === 'lazy') {
+            $imgSizes = 'auto, '.$sizes;
+            foreach ($sources as &$s) {
+                $s['sizes'] = 'auto, '.$s['sizes'];
+            }
+            unset($s);
+        }
+
         $data = [
             'sources' => $sources,
             'img' => [
                 'src'             => $imgSrc,
                 'srcset'          => $fallbackSrcset,
-                'sizes'           => $sizes,
+                'sizes'           => $imgSizes,
                 'width'           => $imgWidth,
                 'height'          => $imgHeight,
                 'alt'             => $alt,
                 'class'           => $imgClass,
-                'loading'         => $params['loading'] ?? $loadingDefault,
+                'loading'         => $loading,
                 'decoding'        => $params['decoding'] ?? 'async',
                 'fetchpriority'   => $params['fetchpriority'] ?? $fetchPriorityDefault,
                 'placeholder'     => $placeholder,

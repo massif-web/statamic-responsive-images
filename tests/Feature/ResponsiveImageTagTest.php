@@ -614,4 +614,28 @@ class ResponsiveImageTagTest extends TestCase
 
         $this->assertStringContainsString('background-color:#ff0000', $html);
     }
+
+    public function test_auto_sizes_prepended_on_lazy_images(): void
+    {
+        $html = $this->makeTag()->renderFromParams(['src' => '/p.jpg', 'alt' => 'x']);
+
+        $this->assertStringContainsString('sizes="auto, ', $html);
+    }
+
+    public function test_auto_sizes_absent_on_eager_images(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src' => '/p.jpg', 'alt' => 'x', 'loading' => 'eager',
+        ]);
+
+        $this->assertStringNotContainsString('auto, ', $html);
+    }
+
+    public function test_auto_sizes_can_be_disabled_by_config(): void
+    {
+        $html = $this->makeTag(['markup' => ['auto_sizes' => false]])
+            ->renderFromParams(['src' => '/p.jpg', 'alt' => 'x']);
+
+        $this->assertStringNotContainsString('auto, ', $html);
+    }
 }
