@@ -46,6 +46,11 @@ return [
         'auto_sizes' => true,
     ],
 
+    // Strip EXIF/ICC/XMP/IPTC on Glide encode. GLOBAL — affects every Glide image
+    // on the site (like the addon's sRGB conversion) and discards copyright/EXIF,
+    // so it is opt-in. Imagick only; GD carries no metadata through re-encode.
+    'strip_metadata' => false,
+
     'placeholder' => [
         'enabled' => true,
         'width'   => 32,

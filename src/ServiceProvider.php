@@ -4,6 +4,7 @@ namespace Massif\ResponsiveImages;
 
 use League\Glide\Server;
 use Massif\ResponsiveImages\Glide\ColorProfile;
+use Massif\ResponsiveImages\Glide\StripMetadata;
 use Massif\ResponsiveImages\Image\FormatPolicy;
 use Massif\ResponsiveImages\Image\ImageResolver;
 use Massif\ResponsiveImages\Image\Metadata;
@@ -117,11 +118,15 @@ class ServiceProvider extends AddonServiceProvider
     public function bootAddon(): void
     {
         $profilePath = __DIR__.'/../resources/icc/sRGB_IEC61966-2-1_black_scaled.icc';
+        $strip = (bool) $this->app['config']->get('responsive-images.strip_metadata', false);
 
-        $this->app->resolving(Server::class, function (Server $server) use ($profilePath) {
+        $this->app->resolving(Server::class, function (Server $server) use ($profilePath, $strip) {
             $api = $server->getApi();
             $manipulators = $api->getManipulators();
             $manipulators[] = new ColorProfile($profilePath);
+            if ($strip) {
+                $manipulators[] = new StripMetadata();
+            }
             $api->setManipulators($manipulators);
             $server->setApi($api);
         });
