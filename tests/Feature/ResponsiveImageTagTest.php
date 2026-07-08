@@ -248,6 +248,22 @@ class ResponsiveImageTagTest extends TestCase
         $this->assertStringContainsString('media="(max-width: 768px)"', $html);
     }
 
+    public function test_art_direction_source_inherits_parent_src(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src'     => '/hero.jpg',
+            'alt'     => 'x',
+            'sources' => [
+                ['media' => '(max-width: 768px)', 'ratio' => '1/1'], // no src → inherit parent
+                ['media' => null],
+            ],
+        ]);
+
+        // Without inheritance the srcless entry resolves to null and is dropped,
+        // so its media <source> would be absent.
+        $this->assertStringContainsString('media="(max-width: 768px)"', $html);
+    }
+
     public function test_svg_src_renders_bare_img_no_picture(): void
     {
         $reader = new class extends MetadataReader {

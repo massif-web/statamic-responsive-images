@@ -160,7 +160,7 @@ class ResponsiveImage extends Tags
         $artDirection = $params['sources'] ?? null;
 
         if (is_array($artDirection) && $artDirection !== []) {
-            $sources = $this->buildArtDirectionSources($artDirection, $sizes, $ratio, $fit, $activeFormats, $qualityOverride, $extras);
+            $sources = $this->buildArtDirectionSources($image, $artDirection, $sizes, $ratio, $fit, $activeFormats, $qualityOverride, $extras);
             $lastEntrySrc = $artDirection[count($artDirection) - 1]['src'] ?? null;
             $fallbackImage = $lastEntrySrc !== null
                 ? ($this->resolver->resolve($lastEntrySrc) ?? $image)
@@ -304,11 +304,14 @@ class ResponsiveImage extends Tags
         return $sources;
     }
 
-    private function buildArtDirectionSources(array $entries, string $defaultSizes, ?float $parentRatio, ?string $fit, array $activeFormats, ?int $qualityOverride, array $extras): array
+    private function buildArtDirectionSources(ResolvedImage $parent, array $entries, string $defaultSizes, ?float $parentRatio, ?string $fit, array $activeFormats, ?int $qualityOverride, array $extras): array
     {
         $result = [];
         foreach ($entries as $entry) {
-            $resolved = $this->resolver->resolve($entry['src'] ?? null);
+            $resolved = ($entry['src'] ?? '') !== ''
+                ? $this->resolver->resolve($entry['src'])
+                : $parent;
+
             if ($resolved === null) {
                 continue;
             }
