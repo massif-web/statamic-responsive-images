@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.1.0 — 2026-07-08
+
 ### Breaking
 - **`Massif\ResponsiveImages\Tags\Pic` has moved to `Massif\ResponsiveImages\Aliases\Pic`.** Internal class; unlikely to affect users. Branch is unreleased.
 - **Default `sizes` flipped** from `'100vw'` to a layout-aware default: `'(min-width: 1280px) 640px, (min-width: 768px) 50vw, 90vw'`. Images served on desktop are now ~640px wide by default, a meaningful bandwidth win on typical content-constrained layouts. Users who relied on the old behavior should publish the config and set `'default_sizes' => '100vw'`.
