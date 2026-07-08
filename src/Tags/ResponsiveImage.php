@@ -254,7 +254,7 @@ class ResponsiveImage extends Tags
                 'decoding'        => $params['decoding'] ?? 'async',
                 'fetchpriority'   => $params['fetchpriority'] ?? $fetchPriorityDefault,
                 'placeholder'     => $placeholder,
-                'background_color' => $backgroundColor,
+                'background_color'=> $backgroundColor,
                 'object_position' => $objectPosition,
             ],
             'wrapper' => [

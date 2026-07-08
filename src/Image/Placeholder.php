@@ -78,11 +78,15 @@ class Placeholder
         $ttl    = $config['cache']['ttl'] ?? null;
         $key    = sprintf('%s:color:%s:%d', $prefix, $image->id, $image->mtime);
 
-        $callback = fn () => $this->computeColor($image);
+        // Cache the null outcome too (as ''), since Laravel's remember() treats a
+        // cached null as a miss and would re-render via Glide on every request.
+        $callback = fn () => $this->computeColor($image) ?? '';
 
-        return $ttl === null
+        $value = $ttl === null
             ? $this->cache->rememberForever($key, $callback)
             : $this->cache->remember($key, $ttl, $callback);
+
+        return $value === '' ? null : $value;
     }
 
     private function computeColor(ResolvedImage $image): ?string
@@ -101,10 +105,20 @@ class Placeholder
             return null;
         }
 
-        $rgb = imagecolorat($img, 0, 0);
+        $index = imagecolorat($img, 0, 0);
+        if (imageistruecolor($img)) {
+            $r = ($index >> 16) & 0xff;
+            $g = ($index >> 8) & 0xff;
+            $b = $index & 0xff;
+        } else {
+            $c = imagecolorsforindex($img, $index);
+            $r = $c['red'];
+            $g = $c['green'];
+            $b = $c['blue'];
+        }
         imagedestroy($img);
 
-        return sprintf('#%02x%02x%02x', ($rgb >> 16) & 0xff, ($rgb >> 8) & 0xff, $rgb & 0xff);
+        return sprintf('#%02x%02x%02x', $r, $g, $b);
     }
 
     private function fetchViaGlide(ResolvedImage $image, array $cfg): array
