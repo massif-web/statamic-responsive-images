@@ -654,4 +654,22 @@ class ResponsiveImageTagTest extends TestCase
 
         $this->assertStringNotContainsString('auto, ', $html);
     }
+
+    public function test_debug_comment_emitted_when_src_missing(): void
+    {
+        config()->set('app.debug', true);
+
+        $html = $this->makeTag()->renderFromParams(['src' => null, 'alt' => 'x']);
+
+        $this->assertStringContainsString('<!-- responsive_image: src not found', $html);
+    }
+
+    public function test_no_comment_in_production(): void
+    {
+        config()->set('app.debug', false);
+
+        $html = $this->makeTag()->renderFromParams(['src' => null, 'alt' => 'x']);
+
+        $this->assertSame('', $html);
+    }
 }

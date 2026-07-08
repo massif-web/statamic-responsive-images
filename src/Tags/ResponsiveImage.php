@@ -71,7 +71,7 @@ class ResponsiveImage extends Tags
 
         if ($image === null) {
             Log::warning('[responsive_image] unresolvable src', ['src' => $src]);
-            return '';
+            return $this->notFound($src);
         }
 
         return $this->renderForImage($image, $params);
@@ -83,7 +83,7 @@ class ResponsiveImage extends Tags
 
         $value = $this->context->value($tag);
         if ($value === null || $value === '') {
-            return '';
+            return $this->notFound($value);
         }
 
         $params = $this->params->all();
@@ -100,10 +100,23 @@ class ResponsiveImage extends Tags
 
         if ($image === null) {
             Log::warning('[responsive_image] unresolvable src', ['src' => $params['src'] ?? null]);
-            return '';
+            return $this->notFound($params['src'] ?? null);
         }
 
         return $this->renderForImage($image, $params);
+    }
+
+    private function notFound(mixed $src): string
+    {
+        if (! config('app.debug')) {
+            return '';
+        }
+
+        // Neutralize comment-breaking sequences before embedding the src.
+        $safe = str_replace(['--', '>'], ['—', ''], (string) $src);
+
+        return '<!-- responsive_image: src not found "'
+            .htmlspecialchars($safe, ENT_QUOTES, 'UTF-8').'" -->';
     }
 
     private function bootDependencies(): void
