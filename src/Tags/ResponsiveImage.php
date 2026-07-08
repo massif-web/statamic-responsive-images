@@ -4,6 +4,7 @@ namespace Massif\ResponsiveImages\Tags;
 
 use Illuminate\Support\Facades\Log;
 use Statamic\Tags\Tags;
+use Massif\ResponsiveImages\Image\FormatPolicy;
 use Massif\ResponsiveImages\Image\ImageMetadata;
 use Massif\ResponsiveImages\Image\ImageResolver;
 use Massif\ResponsiveImages\Image\Metadata;
@@ -32,6 +33,7 @@ class ResponsiveImage extends Tags
     private ?PictureRenderer $renderer;
     private ?PassthroughRenderer $passthrough;
     private ?Preloader $preloader;
+    private ?FormatPolicy $formatPolicy;
     private ?array $config;
 
     public function __construct(
@@ -43,6 +45,7 @@ class ResponsiveImage extends Tags
         ?PictureRenderer $renderer = null,
         ?PassthroughRenderer $passthrough = null,
         ?Preloader $preloader = null,
+        ?FormatPolicy $formatPolicy = null,
         ?array $config = null,
     ) {
         $this->resolver      = $resolver;
@@ -53,6 +56,7 @@ class ResponsiveImage extends Tags
         $this->renderer      = $renderer;
         $this->passthrough   = $passthrough;
         $this->preloader     = $preloader;
+        $this->formatPolicy  = $formatPolicy;
         $this->config        = $config;
     }
 
@@ -67,7 +71,7 @@ class ResponsiveImage extends Tags
 
         if ($image === null) {
             Log::warning('[responsive_image] unresolvable src', ['src' => $src]);
-            return '';
+            return $this->notFound($src);
         }
 
         return $this->renderForImage($image, $params);
@@ -79,7 +83,7 @@ class ResponsiveImage extends Tags
 
         $value = $this->context->value($tag);
         if ($value === null || $value === '') {
-            return '';
+            return $this->notFound($value);
         }
 
         $params = $this->params->all();
@@ -96,10 +100,23 @@ class ResponsiveImage extends Tags
 
         if ($image === null) {
             Log::warning('[responsive_image] unresolvable src', ['src' => $params['src'] ?? null]);
-            return '';
+            return $this->notFound($params['src'] ?? null);
         }
 
         return $this->renderForImage($image, $params);
+    }
+
+    private function notFound(mixed $src): string
+    {
+        if (! config('app.debug')) {
+            return '';
+        }
+
+        // Neutralize comment-breaking sequences before embedding the src.
+        $safe = str_replace(['--', '>'], ['—', ''], (string) $src);
+
+        return '<!-- responsive_image: src not found "'
+            .htmlspecialchars($safe, ENT_QUOTES, 'UTF-8').'" -->';
     }
 
     private function bootDependencies(): void
@@ -112,6 +129,7 @@ class ResponsiveImage extends Tags
         $this->renderer      ??= app(PictureRenderer::class);
         $this->passthrough   ??= app(PassthroughRenderer::class);
         $this->preloader     ??= app(Preloader::class);
+        $this->formatPolicy  ??= app(FormatPolicy::class);
         $this->config        ??= config('responsive-images');
     }
 
@@ -143,13 +161,19 @@ class ResponsiveImage extends Tags
 
         $sizes = (string) ($params['sizes'] ?? $this->config['default_sizes']);
 
-        [$activeFormats, $qualityOverride] = $this->resolveFormatsAndQuality($params);
+        $qualityOverride = (isset($params['quality']) && is_numeric($params['quality']))
+            ? (int) $params['quality']
+            : null;
+        $activeFormats = $this->formatPolicy->formatsFor(
+            $this->parseFormats($params['formats'] ?? null),
+            (int) max($widths),
+        );
 
         $extras = $this->extrasFromParams($params);
         $artDirection = $params['sources'] ?? null;
 
         if (is_array($artDirection) && $artDirection !== []) {
-            $sources = $this->buildArtDirectionSources($artDirection, $sizes, $ratio, $fit, $activeFormats, $qualityOverride, $extras);
+            $sources = $this->buildArtDirectionSources($image, $artDirection, $sizes, $ratio, $fit, $activeFormats, $qualityOverride, $extras);
             $lastEntrySrc = $artDirection[count($artDirection) - 1]['src'] ?? null;
             $fallbackImage = $lastEntrySrc !== null
                 ? ($this->resolver->resolve($lastEntrySrc) ?? $image)
@@ -174,6 +198,7 @@ class ResponsiveImage extends Tags
         $fallbackSrcset = $this->buildSrcset($fallbackImage, $widths, 'fallback', $srcsetHeight, $fit, $qualityOverride, $extras);
 
         $placeholder = $this->placeholderValue($params, $fallbackImage);
+        $backgroundColor = $this->dominantColorValue($params, $fallbackImage);
         $objectPosition = $this->objectPositionFromFocal($fallbackImage);
 
         $figure = $this->bool($params['figure'] ?? false);
@@ -228,20 +253,35 @@ class ResponsiveImage extends Tags
             }
         }
 
+        $loading = $params['loading'] ?? $loadingDefault;
+
+        // WHATWG auto-sizes: valid only with loading="lazy". Older browsers ignore
+        // the `auto` token and fall through to the next source-size. Applied after
+        // the preload block so preload links keep the resolvable sizes.
+        $imgSizes = $sizes;
+        if (($this->config['markup']['auto_sizes'] ?? true) && $loading === 'lazy') {
+            $imgSizes = 'auto, '.$sizes;
+            foreach ($sources as &$s) {
+                $s['sizes'] = 'auto, '.$s['sizes'];
+            }
+            unset($s);
+        }
+
         $data = [
             'sources' => $sources,
             'img' => [
                 'src'             => $imgSrc,
                 'srcset'          => $fallbackSrcset,
-                'sizes'           => $sizes,
+                'sizes'           => $imgSizes,
                 'width'           => $imgWidth,
                 'height'          => $imgHeight,
                 'alt'             => $alt,
                 'class'           => $imgClass,
-                'loading'         => $params['loading'] ?? $loadingDefault,
+                'loading'         => $loading,
                 'decoding'        => $params['decoding'] ?? 'async',
                 'fetchpriority'   => $params['fetchpriority'] ?? $fetchPriorityDefault,
                 'placeholder'     => $placeholder,
+                'background_color'=> $backgroundColor,
                 'object_position' => $objectPosition,
             ],
             'wrapper' => [
@@ -263,9 +303,13 @@ class ResponsiveImage extends Tags
             if (! in_array($format, $activeFormats, true)) {
                 continue;
             }
+            $srcset = $this->buildSrcset($image, $widths, $format, $height, $fit, $qualityOverride, $extras);
+            if ($srcset === '') {
+                continue;
+            }
             $sources[] = [
                 'type'   => 'image/'.$format,
-                'srcset' => $this->buildSrcset($image, $widths, $format, $height, $fit, $qualityOverride, $extras),
+                'srcset' => $srcset,
                 'sizes'  => $sizes,
                 'media'  => null,
             ];
@@ -273,11 +317,14 @@ class ResponsiveImage extends Tags
         return $sources;
     }
 
-    private function buildArtDirectionSources(array $entries, string $defaultSizes, ?float $parentRatio, ?string $fit, array $activeFormats, ?int $qualityOverride, array $extras): array
+    private function buildArtDirectionSources(ResolvedImage $parent, array $entries, string $defaultSizes, ?float $parentRatio, ?string $fit, array $activeFormats, ?int $qualityOverride, array $extras): array
     {
         $result = [];
         foreach ($entries as $entry) {
-            $resolved = $this->resolver->resolve($entry['src'] ?? null);
+            $resolved = ($entry['src'] ?? '') !== ''
+                ? $this->resolver->resolve($entry['src'])
+                : $parent;
+
             if ($resolved === null) {
                 continue;
             }
@@ -296,13 +343,18 @@ class ResponsiveImage extends Tags
             $media = $entry['media'] ?? null;
 
             foreach ($activeFormats as $format) {
+                $srcset = $this->buildSrcset($resolved, $widths, $format, $height, $entryFit, $qualityOverride, $extras);
+                if ($srcset === '') {
+                    continue;
+                }
+
                 $mime = $format === 'fallback'
                     ? ($meta->mime ?: 'image/jpeg')
                     : 'image/'.$format;
 
                 $result[] = [
                     'type'   => $mime,
-                    'srcset' => $this->buildSrcset($resolved, $widths, $format, $height, $entryFit, $qualityOverride, $extras),
+                    'srcset' => $srcset,
                     'sizes'  => $sizes,
                     'media'  => $media,
                 ];
@@ -324,12 +376,18 @@ class ResponsiveImage extends Tags
             $h = $height !== null && $maxWidth > 0
                 ? (int) round($w * ($height / $maxWidth))
                 : null;
+
+            if ($format === 'avif' && ! $this->formatPolicy->avifWidthAllowed($w, $h)) {
+                continue;
+            }
+
             $parts[] = $this->urlBuilder->build($image,
                 width: $w, format: $format, quality: $quality, height: $h, fit: $fit,
                 extras: $extras,
             ).' '.$w.'w';
         }
-        return implode(', ', $parts);
+
+        return $parts === [] ? '' : implode(', ', $parts);
     }
 
     private function placeholderValue(array $params, ResolvedImage $image): ?string
@@ -339,6 +397,16 @@ class ResponsiveImage extends Tags
             return null;
         }
         return $this->placeholder->dataUri($image, $this->config);
+    }
+
+    private function dominantColorValue(array $params, ResolvedImage $image): ?string
+    {
+        $raw = $params['placeholder'] ?? null;
+        if ($raw === false || $raw === 'false' || $raw === '0') {
+            return null;
+        }
+
+        return $this->placeholder->color($image, $this->config);
     }
 
     private function parseRatio(mixed $raw): ?float
@@ -473,21 +541,6 @@ class ResponsiveImage extends Tags
     }
 
     /**
-     * @return array{0: list<string>, 1: ?int}
-     */
-    private function resolveFormatsAndQuality(array $params): array
-    {
-        $quality = isset($params['quality']) && is_numeric($params['quality'])
-            ? (int) $params['quality']
-            : null;
-
-        $override = $this->parseFormats($params['formats'] ?? null);
-        $formats  = $override ?? $this->enabledFormats();
-
-        return [$formats, $quality];
-    }
-
-    /**
      * @return list<string>|null
      */
     private function parseFormats(mixed $raw): ?array
@@ -500,27 +553,12 @@ class ResponsiveImage extends Tags
             ? $raw
             : array_filter(array_map('trim', explode(',', (string) $raw)));
 
-        $valid = array_values(array_filter(
+        $valid = array_values(array_unique(array_filter(
             array_map('strtolower', array_map('strval', $list)),
             fn (string $f) => in_array($f, ['avif', 'webp', 'fallback'], true)
-        ));
+        )));
 
         return $valid === [] ? null : $valid;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function enabledFormats(): array
-    {
-        $out = [];
-        foreach (['avif', 'webp'] as $f) {
-            if (! empty($this->config['formats'][$f]['enabled'])) {
-                $out[] = $f;
-            }
-        }
-        $out[] = 'fallback';
-        return $out;
     }
 
     private function qualityFor(string $format, ?int $override): int

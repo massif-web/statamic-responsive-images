@@ -12,6 +12,7 @@ use Massif\ResponsiveImages\Image\MetadataReader;
 use Massif\ResponsiveImages\Image\SrcsetBuilder;
 use Massif\ResponsiveImages\Image\UrlBuilder;
 use Massif\ResponsiveImages\Image\Placeholder;
+use Massif\ResponsiveImages\Image\FormatPolicy;
 use Massif\ResponsiveImages\View\PictureRenderer;
 use Massif\ResponsiveImages\View\PassthroughRenderer;
 use Illuminate\Cache\ArrayStore;
@@ -21,8 +22,12 @@ class ResponsiveImageTagTest extends TestCase
 {
     private array $preloaded = [];
 
-    private function makeTag(array $configOverrides = [], ?MetadataReader $reader = null): ResponsiveImage
-    {
+    private function makeTag(
+        array $configOverrides = [],
+        ?MetadataReader $reader = null,
+        ?callable $canEncode = null,
+        ?callable $colorRenderer = null
+    ): ResponsiveImage {
         $cache = new Repository(new ArrayStore);
 
         $reader ??= new class extends MetadataReader {
@@ -42,6 +47,7 @@ class ResponsiveImageTagTest extends TestCase
         $placeholder = new Placeholder(
             cache: $cache,
             fetcher: fn () => ['bytes' => 'P', 'mime' => 'image/jpeg'],
+            colorRenderer: $colorRenderer ?? fn () => '',
         );
 
         $this->preloaded = [];
@@ -54,11 +60,14 @@ class ResponsiveImageTagTest extends TestCase
         $baseConfig = require __DIR__.'/../../config/responsive-images.php';
         $config = array_replace_recursive($baseConfig, $configOverrides);
 
+        $formatPolicy = new FormatPolicy($config, $canEncode ?? fn () => true);
+
         return new ResponsiveImage(
             $resolver, $metadata, $srcset, $urls, $placeholder,
             new PictureRenderer(),
-            new \Massif\ResponsiveImages\View\PassthroughRenderer(),
+            new PassthroughRenderer(),
             $preloader,
+            formatPolicy: $formatPolicy,
             config: $config,
         );
     }
@@ -236,6 +245,22 @@ class ResponsiveImageTagTest extends TestCase
             ],
         ]);
 
+        $this->assertStringContainsString('media="(max-width: 768px)"', $html);
+    }
+
+    public function test_art_direction_source_inherits_parent_src(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src'     => '/hero.jpg',
+            'alt'     => 'x',
+            'sources' => [
+                ['media' => '(max-width: 768px)', 'ratio' => '1/1'], // no src → inherit parent
+                ['media' => null],
+            ],
+        ]);
+
+        // Without inheritance the srcless entry resolves to null and is dropped,
+        // so its media <source> would be absent.
         $this->assertStringContainsString('media="(max-width: 768px)"', $html);
     }
 
@@ -437,14 +462,15 @@ class ResponsiveImageTagTest extends TestCase
             ksort($params);
             return '/img/'.$img->id.'?'.http_build_query($params);
         });
-        $placeholder = new Placeholder(cache: $cache, fetcher: fn () => ['bytes' => 'P', 'mime' => 'image/jpeg']);
+        $placeholder = new Placeholder(cache: $cache, fetcher: fn () => ['bytes' => 'P', 'mime' => 'image/jpeg'], colorRenderer: fn () => '');
 
         $baseConfig = require __DIR__.'/../../config/responsive-images.php';
+        $formatPolicy = new FormatPolicy($baseConfig, fn () => true);
 
         $args = [$resolver, $metadata, $srcset, $urls, $placeholder, new PictureRenderer(), new \Massif\ResponsiveImages\View\PassthroughRenderer(), new \Massif\ResponsiveImages\View\Preloader()];
 
-        $tag = new ResponsiveImage(...$args, config: $baseConfig);
-        $pic = new \Massif\ResponsiveImages\Aliases\Pic(...$args, config: $baseConfig);
+        $tag = new ResponsiveImage(...$args, formatPolicy: $formatPolicy, config: $baseConfig);
+        $pic = new \Massif\ResponsiveImages\Aliases\Pic(...$args, formatPolicy: $formatPolicy, config: $baseConfig);
 
         $params = ['src' => '/p.jpg', 'alt' => 'x'];
 
@@ -552,5 +578,98 @@ class ResponsiveImageTagTest extends TestCase
         ]);
 
         $this->assertSame([], $this->preloaded);
+    }
+
+    public function test_gating_drops_avif_when_driver_cannot_encode(): void
+    {
+        $html = $this->makeTag([], null, fn (string $f) => $f !== 'avif')
+            ->renderFromParams(['src' => '/p.jpg', 'alt' => 'x']);
+
+        $this->assertStringNotContainsString('type="image/avif"', $html);
+        $this->assertStringContainsString('type="image/webp"', $html);
+        $this->assertStringContainsString('<img', $html);
+    }
+
+    public function test_min_width_threshold_serves_fallback_only_for_small_images(): void
+    {
+        $html = $this->makeTag(['formats' => ['min_width' => 900]])
+            ->renderFromParams(['src' => '/p.jpg', 'alt' => 'x', 'widths' => '320,640']);
+
+        $this->assertStringNotContainsString('type="image/avif"', $html);
+        $this->assertStringNotContainsString('type="image/webp"', $html);
+        $this->assertStringContainsString('<img', $html);
+    }
+
+    public function test_avif_source_dropped_when_all_widths_below_16px_floor(): void
+    {
+        $reader = new class extends MetadataReader {
+            public function read(ResolvedImage $image): ImageMetadata
+            {
+                return new ImageMetadata(20, 10, 'image/jpeg');
+            }
+        };
+
+        $html = $this->makeTag([], $reader)
+            ->renderFromParams(['src' => '/tiny.jpg', 'alt' => 'x', 'ratio' => '16/9']);
+
+        $this->assertStringNotContainsString('type="image/avif"', $html);
+        $this->assertStringContainsString('type="image/webp"', $html);
+    }
+
+    public function test_dominant_color_rendered_as_background(): void
+    {
+        $im = imagecreatetruecolor(1, 1);
+        imagesetpixel($im, 0, 0, imagecolorallocate($im, 255, 0, 0));
+        ob_start();
+        imagepng($im);
+        $png = (string) ob_get_clean();
+        imagedestroy($im);
+
+        $html = $this->makeTag([], null, null, fn () => $png)
+            ->renderFromParams(['src' => '/p.jpg', 'alt' => 'x']);
+
+        $this->assertStringContainsString('background-color:#ff0000', $html);
+    }
+
+    public function test_auto_sizes_prepended_on_lazy_images(): void
+    {
+        $html = $this->makeTag()->renderFromParams(['src' => '/p.jpg', 'alt' => 'x']);
+
+        $this->assertStringContainsString('sizes="auto, ', $html);
+    }
+
+    public function test_auto_sizes_absent_on_eager_images(): void
+    {
+        $html = $this->makeTag()->renderFromParams([
+            'src' => '/p.jpg', 'alt' => 'x', 'loading' => 'eager',
+        ]);
+
+        $this->assertStringNotContainsString('auto, ', $html);
+    }
+
+    public function test_auto_sizes_can_be_disabled_by_config(): void
+    {
+        $html = $this->makeTag(['markup' => ['auto_sizes' => false]])
+            ->renderFromParams(['src' => '/p.jpg', 'alt' => 'x']);
+
+        $this->assertStringNotContainsString('auto, ', $html);
+    }
+
+    public function test_debug_comment_emitted_when_src_missing(): void
+    {
+        config()->set('app.debug', true);
+
+        $html = $this->makeTag()->renderFromParams(['src' => null, 'alt' => 'x']);
+
+        $this->assertStringContainsString('<!-- responsive_image: src not found', $html);
+    }
+
+    public function test_no_comment_in_production(): void
+    {
+        config()->set('app.debug', false);
+
+        $html = $this->makeTag()->renderFromParams(['src' => null, 'alt' => 'x']);
+
+        $this->assertSame('', $html);
     }
 }

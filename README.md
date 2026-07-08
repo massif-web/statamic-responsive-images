@@ -221,6 +221,18 @@ Pass an array of entries via the `sources` parameter. Each entry becomes its own
 
 Each entry accepts `src` (required), `media`, `sizes`, and `ratio`. The last entry's `src` is used as the `<img>` fallback when no breakpoint matches.
 
+**Source inheritance.** An art-direction source may omit `src` to reuse the parent image with a different crop, ratio, or focal point per breakpoint:
+
+```antlers
+{{ responsive_image :src="hero" :sources="art_sources" }}
+
+{{# in the antlers/PHP context: #}}
+art_sources = [
+  { media: '(max-width: 768px)', ratio: '1/1' },  {{# inherits `hero`, square crop #}}
+  { }                                              {{# inherits `hero`, default ratio #}}
+]
+```
+
 ## Config
 
 `config/responsive-images.php`:
@@ -234,16 +246,25 @@ return [
     'fallback_width' => 828,
 
     'formats' => [
-        'avif'     => ['enabled' => true, 'quality' => 50],
-        'webp'     => ['enabled' => true, 'quality' => 75],
-        'fallback' => ['quality' => 82],
+        'avif'           => ['enabled' => true, 'quality' => 50],
+        'webp'           => ['enabled' => true, 'quality' => 75],
+        'fallback'       => ['quality' => 82],
+        'detect_support' => true,
+        'min_width'      => 0,
     ],
+
+    'markup' => [
+        'auto_sizes' => true,
+    ],
+
+    'strip_metadata' => false,
 
     'placeholder' => [
         'enabled' => true,
         'width'   => 32,
         'blur'    => 40,
         'quality' => 40,
+        'color'   => ['enabled' => true],
     ],
 
     'preload' => [
@@ -269,6 +290,29 @@ return [
 **Format quality.** AVIF defaults to 50, WebP to 75, fallback to 82. Lower values ship smaller bytes; tune per project.
 
 **Placeholder integration with `daun/statamic-placeholders`.** If you install the [`daun/statamic-placeholders`](https://github.com/daun/statamic-placeholders) addon, its placeholder data (ThumbHash, BlurHash, or Average color — whichever you've configured on the asset's `placeholder` field) is auto-detected and used in preference to the built-in Glide LQIP. When the asset has no placeholder data or when `src` is a raw URL, we silently fall back to the Glide LQIP — output shape is unchanged (still a base64 data URI on `background-image`). Provider choice lives entirely in that addon; we don't expose a provider knob, since mismatching our override against the blueprint's `placeholder_type` would silently miss and fall back. Disable the integration by setting `placeholder.statamic_placeholders.enabled` to `false`.
+
+### Automatic format support detection
+
+By default the addon only emits an `<avif>` or `<webp>` `<source>` when the active imaging driver (`statamic.assets.image_manipulation.driver`) can actually encode it, probed via Statamic's `ImageValidator`. This prevents broken images on servers whose GD/Imagick lacks a format — a `<picture>` element does **not** fall back when a `<source>` fails to load. Disable with `formats.detect_support => false` (e.g. when a transform-CDN serves formats your local driver can't).
+
+The per-format `formats.avif.enabled` / `formats.webp.enabled` flags still apply and are ANDed with detection.
+
+### Skipping modern formats for small images
+
+Set `formats.min_width` (default `0`, disabled) to a pixel width below which AVIF/WebP are skipped in favor of the fallback — the modern-format overhead rarely pays off on tiny thumbnails. AVIF is additionally never emitted below libavif's hard 16px floor (this is always on; it fixes 0-byte AVIF variants at tall aspect ratios).
+
+### Placeholders
+
+- **LQIP** (`placeholder.enabled`) — a tiny blurred inline data-URI.
+- **Dominant color** (`placeholder.color.enabled`, default on) — the image's average color painted as the `<img>` `background-color`, shown under the LQIP (and alone if the LQIP is off). Both are suppressed by `placeholder="false"` on the tag.
+
+### `sizes="auto"`
+
+Lazy images get `sizes="auto, …"` prepended (WHATWG auto-sizes) so the browser derives the displayed size from layout; older browsers ignore the token. Disable with `markup.auto_sizes => false`.
+
+### Metadata stripping
+
+`strip_metadata => true` (default `false`) strips EXIF/ICC/XMP/IPTC on encode. It is a **global** Glide manipulator affecting every image on the site and discards copyright/EXIF, so it is opt-in. Imagick only.
 
 ## Performance notes
 

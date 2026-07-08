@@ -11,6 +11,7 @@
 - **Multi-asset field sources now resolve.** `ImageResolver::resolve()` previously handled arrays, `Asset` instances, and duck-typed asset objects, but fell through on `Statamic\Assets\OrderedQueryBuilder` (the runtime type of a `max_files>1` asset field bound to `:src`), producing an "unresolvable src" log and no output. The resolver now collapses any non-Asset `Traversable` or `Illuminate\Contracts\Support\Arrayable` to its first element, mirroring the existing array-src unwrap behavior. Collections, iterators, and Statamic query builders all resolve.
 - **Metadata read failures now log a warning on both the `getimagesize()` false-return and exception paths.** Previously, unreadable-but-non-throwing sources (missing files, non-images) silently returned an `ImageMetadata::failed()` sentinel with no log trail. Both paths now emit `Log::warning('[responsive_image] metadata read failed', …)` with a `reason` field (`'unreadable'` or `'exception'`) differentiating the two, giving operators a single grep needle.
 - **Public-relative URLs now resolve for metadata reads.** `MetadataReader::read()` previously passed URLs like `/images/foo.jpg` straight to `getimagesize()`, which treats them as filesystem paths and fails — causing the tag to short-circuit to a bare `<img>` with no srcset. Root-relative URLs are now resolved through `public_path()` before the read. URLs with a scheme (`http://`, `https://`) and absolute filesystem paths pass through unchanged.
+- **AVIF variants below libavif's 16px floor are no longer emitted.** At tall aspect ratios the computed height of the smallest srcset widths could fall below 16px, where libavif silently produces a 0-byte file — a broken image with no `<picture>` fallback. Those AVIF srcset entries are now dropped, and an AVIF `<source>` left with an empty srcset is omitted entirely.
 
 ### Changed
 - **Metadata cache hardening.** `MetadataReader::read()` now wraps its full
@@ -44,6 +45,11 @@
   Replaced by `cache.metadata_ttl` (default `7_776_000` — 90 days) and
   `cache.sentinel_ttl` (default `60` — seconds to cache failed reads).
   Republish the config if you previously customized `cache.ttl`.
+- **New:** `'formats.detect_support' => true` — only emit an AVIF/WebP `<source>` when the active imaging driver can actually encode it, probed via Statamic's `ImageValidator` and ANDed with the per-format `enabled` flag. Prevents broken images on drivers lacking a format. Set `false` for transform-CDN setups that serve formats the local driver can't.
+- **New:** `'formats.min_width' => 0` — below this rendered max width, skip AVIF/WebP and serve the fallback only. `0` disables; a value like `320` avoids modern-format overhead on tiny thumbnails.
+- **New:** `'placeholder.color' => ['enabled' => true]` — paint the image's average color as the `<img>` background, shown under the LQIP.
+- **New:** `'markup' => ['auto_sizes' => true]` — prepend `sizes="auto, …"` on lazy images (WHATWG auto-sizes).
+- **New:** `'strip_metadata' => false` — opt-in, global, Imagick-only Glide manipulator that strips EXIF/ICC/XMP/IPTC on encode (runs after the sRGB `ColorProfile`).
 
 ### Added
 - **`{{ pic }}` short alias** alongside `{{ responsive_image }}`, with a configurable handle via `config('responsive-images.tag_alias')` (default `'pic'`, `null` disables).
@@ -66,6 +72,13 @@
   package. If the file or the `lcms` delegate is missing, or the image
   driver is not Imagick, the manipulator silently no-ops and delivery
   continues unchanged.
+- **Automatic image-format support detection (#1).** AVIF/WebP `<source>` elements are only emitted when the configured imaging driver can encode the format (`ImageValidator::isValidImage`), so a driver without AVIF/WebP no longer produces broken `<picture>` sources. Gating fails safe: a probe error drops the modern `<source>`, never the fallback `<img>`. Configurable via `formats.detect_support`.
+- **Min-width format threshold.** `formats.min_width` skips AVIF/WebP for images rendered below a pixel width, serving the fallback instead (opt-in, default off).
+- **Dominant-color placeholder.** The image's average color is rendered as the `<img>` background-color beneath the LQIP (or alone when the LQIP is disabled), filling the box before any bytes load. Cached like the LQIP; toggle via `placeholder.color.enabled`.
+- **`sizes="auto"` on lazy images.** Lazy `<img>` / `<source>` elements get `auto, …` prepended (WHATWG auto-sizes) so the browser derives the displayed size from layout; older browsers ignore the token. Preload links keep their resolvable sizes. Toggle via `markup.auto_sizes`.
+- **Opt-in metadata stripping.** `strip_metadata` enables a global, Imagick-only Glide manipulator that strips EXIF/ICC/XMP/IPTC on encode (runs after the sRGB conversion). Default off.
+- **Art-direction `src` inheritance.** An art-direction `sources` entry may omit `src` to reuse the parent image with a different crop, ratio, or focal point per breakpoint.
+- **Debug "src not found" marker.** In debug mode (`app.debug`), an unresolvable `src` emits an HTML comment (with the src neutralized against comment injection) instead of rendering nothing; production output is unchanged.
 
 ### Upgrade notes
 - **Clear `storage/statamic/glide` after upgrading.** Existing cached

@@ -169,4 +169,29 @@ class PictureRendererTest extends TestCase
 
         $this->assertStringNotContainsString('aria-hidden', $html);
     }
+
+    public function test_background_color_inlined_before_placeholder(): void
+    {
+        $data = $this->baseData();
+        $data['img']['background_color'] = '#123abc';
+        $data['img']['placeholder'] = 'data:image/jpeg;base64,AAA';
+
+        $html = (new PictureRenderer())->render($data);
+
+        $this->assertStringContainsString(
+            "style=\"background-color:#123abc;background-size:cover;background-image:url('data:image/jpeg;base64,AAA')\"",
+            $html
+        );
+    }
+
+    public function test_background_color_sanitized(): void
+    {
+        $data = $this->baseData();
+        $data['img']['background_color'] = '#fff"><script>';
+
+        $html = (new PictureRenderer())->render($data);
+
+        $this->assertStringContainsString('background-color:#fff', $html);
+        $this->assertStringNotContainsString('<script>', $html);
+    }
 }

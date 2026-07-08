@@ -26,13 +26,41 @@ return [
         'avif'     => ['enabled' => true, 'quality' => 50],
         'webp'     => ['enabled' => true, 'quality' => 75],
         'fallback' => ['quality' => 82],
+
+        // Only emit an AVIF/WebP <source> when the active imaging driver can
+        // actually encode it (probed via Statamic's ImageValidator). Prevents
+        // broken images on servers whose GD/Imagick lacks the format — <picture>
+        // does NOT fall back on a failed <source>. Set false only when a
+        // transform-CDN serves formats the local driver cannot.
+        'detect_support' => true,
+
+        // Below this rendered max width, skip AVIF/WebP and serve the fallback
+        // only. 0 disables. A good value for sites with many small thumbnails is
+        // ~320 — modern-format overhead rarely pays off on tiny images.
+        'min_width' => 0,
     ],
+
+    'markup' => [
+        // Prepend sizes="auto, …" on lazy images (WHATWG auto-sizes). Older
+        // browsers ignore the token and use the remaining source-sizes.
+        'auto_sizes' => true,
+    ],
+
+    // Strip EXIF/ICC/XMP/IPTC on Glide encode. GLOBAL — affects every Glide image
+    // on the site (like the addon's sRGB conversion) and discards copyright/EXIF,
+    // so it is opt-in. Imagick only; GD carries no metadata through re-encode.
+    'strip_metadata' => false,
 
     'placeholder' => [
         'enabled' => true,
         'width'   => 32,
         'blur'    => 40,
         'quality' => 40,
+
+        // Paint the image's average color as the <img> background, shown under
+        // the LQIP (and alone when the LQIP is disabled). Suppressed by the
+        // per-tag placeholder="false".
+        'color' => ['enabled' => true],
 
         // Integration with daun/statamic-placeholders. When enabled and the
         // addon is installed, its placeholder data (ThumbHash / BlurHash /
