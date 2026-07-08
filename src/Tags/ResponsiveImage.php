@@ -553,10 +553,10 @@ class ResponsiveImage extends Tags
             ? $raw
             : array_filter(array_map('trim', explode(',', (string) $raw)));
 
-        $valid = array_values(array_filter(
+        $valid = array_values(array_unique(array_filter(
             array_map('strtolower', array_map('strval', $list)),
             fn (string $f) => in_array($f, ['avif', 'webp', 'fallback'], true)
-        ));
+        )));
 
         return $valid === [] ? null : $valid;
     }

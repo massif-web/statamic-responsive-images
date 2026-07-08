@@ -246,16 +246,25 @@ return [
     'fallback_width' => 828,
 
     'formats' => [
-        'avif'     => ['enabled' => true, 'quality' => 50],
-        'webp'     => ['enabled' => true, 'quality' => 75],
-        'fallback' => ['quality' => 82],
+        'avif'           => ['enabled' => true, 'quality' => 50],
+        'webp'           => ['enabled' => true, 'quality' => 75],
+        'fallback'       => ['quality' => 82],
+        'detect_support' => true,
+        'min_width'      => 0,
     ],
+
+    'markup' => [
+        'auto_sizes' => true,
+    ],
+
+    'strip_metadata' => false,
 
     'placeholder' => [
         'enabled' => true,
         'width'   => 32,
         'blur'    => 40,
         'quality' => 40,
+        'color'   => ['enabled' => true],
     ],
 
     'preload' => [
