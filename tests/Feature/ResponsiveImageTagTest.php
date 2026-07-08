@@ -25,7 +25,8 @@ class ResponsiveImageTagTest extends TestCase
     private function makeTag(
         array $configOverrides = [],
         ?MetadataReader $reader = null,
-        ?callable $canEncode = null
+        ?callable $canEncode = null,
+        ?callable $colorRenderer = null
     ): ResponsiveImage {
         $cache = new Repository(new ArrayStore);
 
@@ -46,6 +47,7 @@ class ResponsiveImageTagTest extends TestCase
         $placeholder = new Placeholder(
             cache: $cache,
             fetcher: fn () => ['bytes' => 'P', 'mime' => 'image/jpeg'],
+            colorRenderer: $colorRenderer ?? fn () => '',
         );
 
         $this->preloaded = [];
@@ -444,7 +446,7 @@ class ResponsiveImageTagTest extends TestCase
             ksort($params);
             return '/img/'.$img->id.'?'.http_build_query($params);
         });
-        $placeholder = new Placeholder(cache: $cache, fetcher: fn () => ['bytes' => 'P', 'mime' => 'image/jpeg']);
+        $placeholder = new Placeholder(cache: $cache, fetcher: fn () => ['bytes' => 'P', 'mime' => 'image/jpeg'], colorRenderer: fn () => '');
 
         $baseConfig = require __DIR__.'/../../config/responsive-images.php';
         $formatPolicy = new FormatPolicy($baseConfig, fn () => true);
@@ -596,5 +598,20 @@ class ResponsiveImageTagTest extends TestCase
 
         $this->assertStringNotContainsString('type="image/avif"', $html);
         $this->assertStringContainsString('type="image/webp"', $html);
+    }
+
+    public function test_dominant_color_rendered_as_background(): void
+    {
+        $im = imagecreatetruecolor(1, 1);
+        imagesetpixel($im, 0, 0, imagecolorallocate($im, 255, 0, 0));
+        ob_start();
+        imagepng($im);
+        $png = (string) ob_get_clean();
+        imagedestroy($im);
+
+        $html = $this->makeTag([], null, null, fn () => $png)
+            ->renderFromParams(['src' => '/p.jpg', 'alt' => 'x']);
+
+        $this->assertStringContainsString('background-color:#ff0000', $html);
     }
 }

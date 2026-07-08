@@ -46,6 +46,11 @@ return [
         'blur'    => 40,
         'quality' => 40,
 
+        // Paint the image's average color as the <img> background, shown under
+        // the LQIP (and alone when the LQIP is disabled). Suppressed by the
+        // per-tag placeholder="false".
+        'color' => ['enabled' => true],
+
         // Integration with daun/statamic-placeholders. When enabled and the
         // addon is installed, its placeholder data (ThumbHash / BlurHash /
         // Average color, per the asset's placeholder field) is used in

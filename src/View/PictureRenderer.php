@@ -78,6 +78,13 @@ class PictureRenderer
 
         $styles = [];
 
+        if (! empty($img['background_color'])) {
+            $safeColor = preg_replace('/[^#0-9a-fA-F]/', '', (string) $img['background_color']);
+            if ($safeColor !== '') {
+                $styles[] = 'background-color:'.$safeColor;
+            }
+        }
+
         if (!empty($img['placeholder'])) {
             $safeUri = preg_replace('/[^A-Za-z0-9+\/=:;,.\-]/', '', (string) $img['placeholder']);
             $styles[] = 'background-size:cover';

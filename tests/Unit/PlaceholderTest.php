@@ -113,4 +113,56 @@ class PlaceholderTest extends TestCase
         $this->assertSame('data:image/png;base64,A', $uri1);
         $this->assertSame('data:image/png;base64,B', $uri2);
     }
+
+    private function onePixelPng(int $r, int $g, int $b): string
+    {
+        $im = imagecreatetruecolor(1, 1);
+        imagesetpixel($im, 0, 0, imagecolorallocate($im, $r, $g, $b));
+        ob_start();
+        imagepng($im);
+        $bytes = (string) ob_get_clean();
+        imagedestroy($im);
+
+        return $bytes;
+    }
+
+    public function test_color_returns_hex_from_rendered_pixel(): void
+    {
+        $png = $this->onePixelPng(255, 0, 0);
+        $p = new Placeholder(
+            cache: new Repository(new ArrayStore),
+            colorRenderer: fn () => $png,
+        );
+
+        $config = $this->config();
+        $config['placeholder']['color'] = ['enabled' => true];
+
+        $this->assertSame('#ff0000', $p->color(new ResolvedImage(null, 'a', 1, '/a.jpg'), $config));
+    }
+
+    public function test_color_null_when_disabled(): void
+    {
+        $p = new Placeholder(
+            cache: new Repository(new ArrayStore),
+            colorRenderer: fn () => 'x',
+        );
+
+        $config = $this->config();
+        $config['placeholder']['color'] = ['enabled' => false];
+
+        $this->assertNull($p->color(new ResolvedImage(null, 'a', 1, '/a.jpg'), $config));
+    }
+
+    public function test_color_null_when_bytes_undecodable(): void
+    {
+        $p = new Placeholder(
+            cache: new Repository(new ArrayStore),
+            colorRenderer: fn () => 'not-an-image',
+        );
+
+        $config = $this->config();
+        $config['placeholder']['color'] = ['enabled' => true];
+
+        $this->assertNull($p->color(new ResolvedImage(null, 'a', 1, '/a.jpg'), $config));
+    }
 }

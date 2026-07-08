@@ -15,13 +15,18 @@ class Placeholder
     /** @var Closure|null */
     private $externalResolver;
 
+    /** @var Closure|null */
+    private $colorRenderer;
+
     public function __construct(
         private CacheRepository $cache,
         ?Closure $fetcher = null,
         ?Closure $externalResolver = null,
+        ?Closure $colorRenderer = null,
     ) {
         $this->fetcher = $fetcher;
         $this->externalResolver = $externalResolver;
+        $this->colorRenderer = $colorRenderer;
     }
 
     public function dataUri(ResolvedImage $image, array $config): ?string
@@ -62,28 +67,71 @@ class Placeholder
         );
     }
 
+    public function color(ResolvedImage $image, array $config): ?string
+    {
+        $cfg = $config['placeholder']['color'] ?? [];
+        if (empty($cfg['enabled'])) {
+            return null;
+        }
+
+        $prefix = $config['cache']['prefix'] ?? 'respimg';
+        $ttl    = $config['cache']['ttl'] ?? null;
+        $key    = sprintf('%s:color:%s:%d', $prefix, $image->id, $image->mtime);
+
+        $callback = fn () => $this->computeColor($image);
+
+        return $ttl === null
+            ? $this->cache->rememberForever($key, $callback)
+            : $this->cache->remember($key, $ttl, $callback);
+    }
+
+    private function computeColor(ResolvedImage $image): ?string
+    {
+        $bytes = $this->colorRenderer
+            ? ($this->colorRenderer)($image)
+            : $this->renderViaGlide($image, ['w' => 1, 'h' => 1, 'fit' => 'crop', 'fm' => 'png']);
+
+        if ($bytes === '' || ! function_exists('imagecreatefromstring')) {
+            return null;
+        }
+
+        // ponytail: a 1x1 downscale IS the average color; GD pixel read is enough
+        $img = @imagecreatefromstring($bytes);
+        if ($img === false) {
+            return null;
+        }
+
+        $rgb = imagecolorat($img, 0, 0);
+        imagedestroy($img);
+
+        return sprintf('#%02x%02x%02x', ($rgb >> 16) & 0xff, ($rgb >> 8) & 0xff, $rgb & 0xff);
+    }
+
     private function fetchViaGlide(ResolvedImage $image, array $cfg): array
     {
-        $params = [
+        $bytes = $this->renderViaGlide($image, [
             'w'    => (int) ($cfg['width'] ?? 32),
             'blur' => (int) ($cfg['blur'] ?? 40),
             'q'    => (int) ($cfg['quality'] ?? 40),
             'fit'  => 'contain',
             'fm'   => 'jpg',
-        ];
+        ]);
 
+        return ['bytes' => $bytes, 'mime' => 'image/jpeg'];
+    }
+
+    private function renderViaGlide(ResolvedImage $image, array $params): string
+    {
         $generator = app(ImageGenerator::class);
 
         if ($image->isAsset()) {
             $path = $generator->generateByAsset($image->asset, $params);
-        } elseif (preg_match('#^https?://#i', $image->url)) {
+        } elseif (preg_match('#^https?://#i', (string) $image->url)) {
             $path = $generator->generateByUrl($image->url, $params);
         } else {
-            $path = $generator->generateByPath($image->url, $params);
+            $path = $generator->generateByPath((string) $image->url, $params);
         }
 
-        $bytes = app(GlideManager::class)->cacheDisk()->get($path) ?: '';
-
-        return ['bytes' => (string) $bytes, 'mime' => 'image/jpeg'];
+        return (string) (app(GlideManager::class)->cacheDisk()->get($path) ?: '');
     }
 }

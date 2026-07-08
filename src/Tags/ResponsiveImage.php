@@ -185,6 +185,7 @@ class ResponsiveImage extends Tags
         $fallbackSrcset = $this->buildSrcset($fallbackImage, $widths, 'fallback', $srcsetHeight, $fit, $qualityOverride, $extras);
 
         $placeholder = $this->placeholderValue($params, $fallbackImage);
+        $backgroundColor = $this->dominantColorValue($params, $fallbackImage);
         $objectPosition = $this->objectPositionFromFocal($fallbackImage);
 
         $figure = $this->bool($params['figure'] ?? false);
@@ -253,6 +254,7 @@ class ResponsiveImage extends Tags
                 'decoding'        => $params['decoding'] ?? 'async',
                 'fetchpriority'   => $params['fetchpriority'] ?? $fetchPriorityDefault,
                 'placeholder'     => $placeholder,
+                'background_color' => $backgroundColor,
                 'object_position' => $objectPosition,
             ],
             'wrapper' => [
@@ -365,6 +367,16 @@ class ResponsiveImage extends Tags
             return null;
         }
         return $this->placeholder->dataUri($image, $this->config);
+    }
+
+    private function dominantColorValue(array $params, ResolvedImage $image): ?string
+    {
+        $raw = $params['placeholder'] ?? null;
+        if ($raw === false || $raw === 'false' || $raw === '0') {
+            return null;
+        }
+
+        return $this->placeholder->color($image, $this->config);
     }
 
     private function parseRatio(mixed $raw): ?float
